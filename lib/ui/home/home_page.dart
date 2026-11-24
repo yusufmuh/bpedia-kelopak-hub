@@ -134,42 +134,45 @@ class _SearchEntry extends StatelessWidget {
       borderRadius: BorderRadius.circular(BpRadius.md),
       side: BorderSide(color: scheme.outlineVariant),
     );
+    // The InkWell gives this node its tap action and keyboard focus; only
+    // the look-alike field text is hidden from screen readers.
     return Semantics(
+      container: true,
       button: true,
       label: 'Cari produk',
-      excludeSemantics: true,
-      onTap: () => openSearch(context),
       child: Material(
         color: scheme.surfaceContainerLowest,
         shape: shape,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => openSearch(context),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: BpSpace.s4,
-                vertical: BpSpace.s3,
-              ),
-              child: Row(
-                children: <Widget>[
-                  BrandIcon(
-                    BrandIcons.mono(BrandIcons.search),
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: BpSpace.s3),
-                  Expanded(
-                    child: Text(
-                      'Cari skincare, makeup, lashes…',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyLarge!.copyWith(
-                        color: scheme.onSurfaceVariant,
+          child: ExcludeSemantics(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 52),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: BpSpace.s4,
+                  vertical: BpSpace.s3,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    BrandIcon(
+                      BrandIcons.mono(BrandIcons.search),
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: BpSpace.s3),
+                    Expanded(
+                      child: Text(
+                        'Cari skincare, makeup, lashes…',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge!.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -179,7 +182,10 @@ class _SearchEntry extends StatelessWidget {
   }
 }
 
-/// Category chips with brand icons; each opens search filtered to it.
+/// Category pills with brand icons; each opens search filtered to it.
+///
+/// They navigate, so they are buttons (named by their label) styled like the
+/// brand's inactive chip, not chips: a chip reads as an unchecked checkbox.
 class _CategoryChips extends StatelessWidget {
   const _CategoryChips({required this.padding});
 
@@ -187,6 +193,17 @@ class _CategoryChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final style = OutlinedButton.styleFrom(
+      minimumSize: const Size(0, BpSize.touchTarget),
+      padding: const EdgeInsets.symmetric(horizontal: BpSpace.s3),
+      foregroundColor: scheme.onSurface,
+      side: BorderSide(color: scheme.outlineVariant),
+      textStyle: theme.textTheme.bodyMedium!.copyWith(
+        fontWeight: FontWeight.w500,
+      ),
+    );
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: padding,
@@ -194,11 +211,11 @@ class _CategoryChips extends StatelessWidget {
         spacing: BpSpace.s2,
         children: <Widget>[
           for (final category in ProductCategory.values)
-            ActionChip(
-              avatar: BrandIcon(category.iconName, size: 18),
-              label: Text(category.label),
-              tooltip: 'Lihat ${category.label}',
+            OutlinedButton.icon(
+              style: style,
               onPressed: () => openSearch(context, category: category),
+              icon: BrandIcon(category.iconName, size: 18),
+              label: Text(category.label),
             ),
         ],
       ),

@@ -16,6 +16,7 @@ dependencies:
   shared_preferences: ^2.5.6
   flutter_svg: ^2.3.4
   url_launcher: ^6.3.3
+  web: ^1.1.1
   daily_checkin:
     path: ../bpedia-daily-checkin
   roda_sabtu:
@@ -59,14 +60,17 @@ flutter_launcher_icons:
   android: true
   ios: true
   adaptive_icon_foreground: assets/launcher/adaptive_fg_preview.png
+  # The foreground art already sits inside the 66 dp safe zone of its 108 dp
+  # canvas; 4% keeps it there at about the size of the legacy and web icons.
+  adaptive_icon_foreground_inset: 4
   adaptive_icon_background: "#FDE7EC"
   remove_alpha_ios: true
   background_color_ios: "#FFF7F8"
+  # Web icons are maintained by hand: web/favicon.png is the 32 px "B"
+  # monogram (assets/launcher/favicon-32.png) and the maskable icons carry
+  # the art inside the 40% safe zone. Generating would overwrite both.
   web:
-    generate: true
-    image_path: assets/launcher/app_icon_preview_1024.png
-    background_color: "#FFF7F8"
-    theme_color: "#D81F57"
+    generate: false
 
 flutter_native_splash:
   color: "#FFF7F8"

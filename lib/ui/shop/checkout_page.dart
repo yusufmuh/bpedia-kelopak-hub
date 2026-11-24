@@ -7,7 +7,7 @@ import '../../core/feedback.dart';
 import '../../core/format.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
-import '../../domain/rewards_engine.dart' show kelopakMaxDiscountPercent;
+import '../../domain/rewards_engine.dart' show kelopakCapRule;
 import '../../domain/shop_engine.dart';
 import '../shell.dart';
 import '../widgets/widgets.dart';
@@ -91,69 +91,71 @@ class _CheckoutPageState extends State<CheckoutPage> {
           SizedBox(width: BpSpace.s4),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          BpSpace.s4,
-          BpSpace.s2,
-          BpSpace.s4,
-          BpSpace.s6,
-        ),
-        children: <Widget>[
-          CenteredWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const _InfoCard(
-                  icon: Icon(Icons.location_on_outlined),
-                  title: 'Pengguna Demo',
-                  body: 'Alamat demo, Jakarta',
-                  label: 'Alamat pengiriman',
-                ),
-                const SizedBox(height: BpSpace.s3),
-                const _InfoCard(
-                  icon: BrandIcon(BrandIcons.ongkir),
-                  title: 'Gratis ongkir (Demo)',
-                  body: 'Pengiriman reguler ke alamat demo',
-                  label: 'Pengiriman',
-                ),
-                const SizedBox(height: BpSpace.s6),
-                SectionHeader('Produk ($count)'),
-                const SizedBox(height: BpSpace.s3),
-                SoftCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: BpSpace.s3,
-                    children: <Widget>[
-                      for (final item in items) _CheckoutLine(item: item),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: BpSpace.s6),
-                const SectionHeader('Hemat'),
-                const SizedBox(height: BpSpace.s3),
-                _VoucherRow(
-                  subtitle: _voucherSubtitle(app, quote),
-                  applied: quote.voucherApplied,
-                  onTap: () => unawaited(_pickVoucher(quote)),
-                ),
-                const SizedBox(height: BpSpace.s3),
-                _KelopakSwitch(
-                  quote: quote,
-                  balance: app.balance,
-                  onChanged: (value) => setState(() => _useKelopak = value),
-                ),
-                const SizedBox(height: BpSpace.s6),
-                const SectionHeader('Rincian harga'),
-                const SizedBox(height: BpSpace.s3),
-                SoftCard(
-                  child: _PriceBreakdown(quote: quote, count: count),
-                ),
-                const SizedBox(height: BpSpace.s3),
-                const _SimulationNote(),
-              ],
-            ),
+      body: FocusTraversalGroup(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            BpSpace.s4,
+            BpSpace.s2,
+            BpSpace.s4,
+            BpSpace.s6,
           ),
-        ],
+          children: <Widget>[
+            CenteredWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const _InfoCard(
+                    icon: Icon(Icons.location_on_outlined),
+                    title: 'Pengguna Demo',
+                    body: 'Alamat demo, Jakarta',
+                    label: 'Alamat pengiriman',
+                  ),
+                  const SizedBox(height: BpSpace.s3),
+                  const _InfoCard(
+                    icon: BrandIcon(BrandIcons.ongkir),
+                    title: 'Gratis ongkir (Demo)',
+                    body: 'Pengiriman reguler ke alamat demo',
+                    label: 'Pengiriman',
+                  ),
+                  const SizedBox(height: BpSpace.s6),
+                  SectionHeader('Produk ($count)'),
+                  const SizedBox(height: BpSpace.s3),
+                  SoftCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: BpSpace.s3,
+                      children: <Widget>[
+                        for (final item in items) _CheckoutLine(item: item),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: BpSpace.s6),
+                  const SectionHeader('Hemat'),
+                  const SizedBox(height: BpSpace.s3),
+                  _VoucherRow(
+                    subtitle: _voucherSubtitle(app, quote),
+                    applied: quote.voucherApplied,
+                    onTap: () => unawaited(_pickVoucher(quote)),
+                  ),
+                  const SizedBox(height: BpSpace.s3),
+                  _KelopakSwitch(
+                    quote: quote,
+                    balance: app.balance,
+                    onChanged: (value) => setState(() => _useKelopak = value),
+                  ),
+                  const SizedBox(height: BpSpace.s6),
+                  const SectionHeader('Rincian harga'),
+                  const SizedBox(height: BpSpace.s3),
+                  SoftCard(
+                    child: _PriceBreakdown(quote: quote, count: count),
+                  ),
+                  const SizedBox(height: BpSpace.s3),
+                  const _SimulationNote(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomActionBar(
         child: Column(
@@ -221,6 +223,7 @@ class _InfoCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Semantics(
+      container: true,
       label: '$label: $title, $body',
       excludeSemantics: true,
       child: SoftCard(
@@ -269,34 +272,35 @@ class _CheckoutLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final product = item.product;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        ProductThumbnail(product.imageAsset, size: 56),
-        const SizedBox(width: BpSpace.s3),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                product.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  fontWeight: FontWeight.w600,
+    // The full name (size, shade) is always shown before paying.
+    return MergeSemantics(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          ProductThumbnail(product.imageAsset, size: 56),
+          const SizedBox(width: BpSpace.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  product.name,
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${item.qty} × ${rupiah(product.price)}',
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                const SizedBox(height: 2),
+                Text(
+                  '${item.qty} × ${rupiah(product.price)}',
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -316,42 +320,45 @@ class _VoucherRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    // One node: the card's InkWell gives it the tap and keyboard focus, the
+    // texts are replaced by the label.
     return Semantics(
+      container: true,
       button: true,
       label: 'Voucher, $subtitle',
       hint: 'Pilih voucher',
-      excludeSemantics: true,
-      onTap: onTap,
       child: SoftCard(
         onTap: onTap,
-        child: Row(
-          children: <Widget>[
-            const IconWell(
-              size: 40,
-              child: BrandIcon(BrandIcons.voucher, size: 22),
-            ),
-            const SizedBox(width: BpSpace.s3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text('Voucher', style: theme.textTheme.titleSmall),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: applied
-                          ? BpColors.of(context).success700
-                          : scheme.onSurfaceVariant,
-                      fontWeight: applied ? FontWeight.w600 : null,
-                    ),
-                  ),
-                ],
+        child: ExcludeSemantics(
+          child: Row(
+            children: <Widget>[
+              const IconWell(
+                size: 40,
+                child: BrandIcon(BrandIcons.voucher, size: 22),
               ),
-            ),
-            const SizedBox(width: BpSpace.s2),
-            Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
-          ],
+              const SizedBox(width: BpSpace.s3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Voucher', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodyMedium!.copyWith(
+                        color: applied
+                            ? BpColors.of(context).success700
+                            : scheme.onSurfaceVariant,
+                        fontWeight: applied ? FontWeight.w600 : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: BpSpace.s2),
+              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+            ],
+          ),
         ),
       ),
     );
@@ -378,9 +385,7 @@ class _KelopakSwitch extends StatelessWidget {
     } else if (max <= 0) {
       subtitle = 'Total belanja terlalu kecil untuk dipotong Kelopak.';
     } else {
-      subtitle =
-          'Maks. $kelopakMaxDiscountPercent% dari total belanja (Demo) · '
-          'saldo ${kelopakLabel(balance)}';
+      subtitle = '$kelopakCapRule · saldo ${kelopakLabel(balance)}';
     }
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -461,13 +466,16 @@ class _SimulationNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return IconText(
-      Icons.info_outline_rounded,
-      'Pembayaran ini simulasi. Tidak ada uang yang ditarik dan semua data '
-      'tersimpan di perangkat ini.',
-      iconSize: 18,
-      style: theme.textTheme.labelMedium!.copyWith(
-        color: scheme.onSurfaceVariant,
+    return Semantics(
+      container: true,
+      child: IconText(
+        Icons.info_outline_rounded,
+        'Pembayaran ini simulasi. Tidak ada uang yang ditarik dan semua data '
+        'tersimpan di perangkat ini.',
+        iconSize: 18,
+        style: theme.textTheme.labelMedium!.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -483,7 +491,7 @@ class _EmptyCheckout extends StatelessWidget {
       body: Center(
         child: SingleChildScrollView(
           child: EmptyState(
-            imageAsset: AppImages.bipyTasHati,
+            imageAsset: AppImages.bipyNgintip,
             title: 'Keranjangmu kosong',
             body: 'Tambahkan produk dulu, lalu kembali ke checkout.',
             actionLabel: 'Mulai belanja',

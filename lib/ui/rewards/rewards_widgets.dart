@@ -1,17 +1,14 @@
 /// Building blocks shared by the Hadiah screens: navigation helper, status
-/// banner, live Saturday countdown, rule sheets and tables, card badges.
+/// banner, rule sheets and tables, card badges.
 library;
 
 import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:roda_sabtu/roda_sabtu.dart' show daysUntilSaturday;
 
 import '../../core/assets.dart';
-import '../../core/format.dart';
 import '../../core/tokens.dart';
-import '../../domain/app_state.dart';
 import '../widgets/widgets.dart';
 
 /// Pushes [page] as a full-screen route on top of [context]'s navigator.
@@ -44,11 +41,30 @@ const EdgeInsets rewardsPagePadding = EdgeInsets.fromLTRB(
   BpSpace.s8,
 );
 
-/// App bar actions with the "DEMO" chip, as used on every Hadiah screen.
-const List<Widget> demoAppBarActions = <Widget>[
-  Center(child: DemoChip()),
-  SizedBox(width: BpSpace.s4),
-];
+/// App bar actions with the "DEMO" chip, as used on every Hadiah screen. At
+/// large text sizes the chip moves into the page ([DemoBodyChip]) so the
+/// title keeps the room it needs.
+List<Widget> demoAppBarActions(BuildContext context) => isLargeText(context)
+    ? const <Widget>[]
+    : const <Widget>[Center(child: DemoChip()), SizedBox(width: BpSpace.s4)];
+
+/// The "DEMO" chip at the top of a Hadiah page, shown only at large text
+/// sizes, when [demoAppBarActions] leaves it out of the app bar.
+class DemoBodyChip extends StatelessWidget {
+  const DemoBodyChip({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isLargeText(context)) return const SizedBox.shrink();
+    return const Padding(
+      padding: EdgeInsets.only(bottom: BpSpace.s3),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: DemoChip(),
+      ),
+    );
+  }
+}
 
 typedef _TonePalette = ({
   Color background,
@@ -185,61 +201,6 @@ class StatusBanner extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Live "2 hari 3 jam lagi" until the next Roda Sabtu opens (00.00 WIB).
-///
-/// Refreshes every 30 seconds; the day itself turns over through [AppState].
-class SpinCountdownText extends StatefulWidget {
-  const SpinCountdownText({
-    super.key,
-    this.prefix = '',
-    this.suffix = ' lagi',
-    this.style,
-  });
-
-  /// Text before the countdown.
-  final String prefix;
-
-  /// Text after the countdown.
-  final String suffix;
-
-  /// Text style; inherits the ambient style when null.
-  final TextStyle? style;
-
-  @override
-  State<SpinCountdownText> createState() => _SpinCountdownTextState();
-}
-
-class _SpinCountdownTextState extends State<SpinCountdownText> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final app = AppScope.of(context);
-    final days = daysUntilSaturday(app.today);
-    final remaining = days <= 0
-        ? Duration.zero
-        : app.untilNextDay() + Duration(days: days - 1);
-    return Text(
-      '${widget.prefix}${countdownLabel(remaining)}${widget.suffix}',
-      style: widget.style,
     );
   }
 }
@@ -555,7 +516,8 @@ class RuleHeading extends StatelessWidget {
 }
 
 /// Shows a scrollable rules/terms sheet with an optional Bipy pose and a
-/// single "Mengerti" button. Completes when the sheet closes.
+/// single "Mengerti" button (the themed secondary button: white, Berry
+/// outline and label). Completes when the sheet closes.
 Future<void> showRewardsInfoSheet(
   BuildContext context, {
   required String title,
@@ -624,7 +586,7 @@ class _RewardsInfoSheet extends StatelessWidget {
             const SizedBox(height: BpSpace.s4),
             ...children,
             const SizedBox(height: BpSpace.s6),
-            FilledButton.tonal(
+            OutlinedButton(
               onPressed: () => Navigator.of(context).pop(),
               child: Text(closeLabel),
             ),

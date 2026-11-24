@@ -185,33 +185,38 @@ class _AppearanceBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tileTheme = theme.listTileTheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        BpSpace.s4,
-        BpSpace.s3,
-        BpSpace.s4,
-        BpSpace.s4,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Icon(Icons.palette_outlined, color: tileTheme.iconColor),
-          const SizedBox(width: BpSpace.s4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text('Tampilan', style: tileTheme.titleTextStyle),
-                Text(
-                  'Pilih tema terang, gelap, atau ikuti ponsel',
-                  style: tileTheme.subtitleTextStyle,
-                ),
-                const SizedBox(height: BpSpace.s3),
-                ThemeModeSelector(value: mode, onChanged: onChanged),
-              ],
+    // A group named by "Tampilan" and its hint, with the three theme buttons
+    // as its children.
+    return Semantics(
+      container: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          BpSpace.s4,
+          BpSpace.s3,
+          BpSpace.s4,
+          BpSpace.s4,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(Icons.palette_outlined, color: tileTheme.iconColor),
+            const SizedBox(width: BpSpace.s4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text('Tampilan', style: tileTheme.titleTextStyle),
+                  Text(
+                    'Pilih tema terang, gelap, atau ikuti ponsel',
+                    style: tileTheme.subtitleTextStyle,
+                  ),
+                  const SizedBox(height: BpSpace.s3),
+                  ThemeModeSelector(value: mode, onChanged: onChanged),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

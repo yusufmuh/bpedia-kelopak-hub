@@ -4,6 +4,10 @@
 /// Every mutation notifies listeners and saves the app document in the
 /// background (saves never throw to the UI). Operations return result objects
 /// instead of throwing for expected situations.
+///
+/// Saves are revisioned: before writing, the saved document is read again and
+/// when another instance (a second browser tab) saved a newer revision, that
+/// document is adopted instead of being overwritten.
 library;
 
 import 'dart:async';
@@ -21,8 +25,15 @@ import 'package:misi_belanja/misi_belanja.dart'
         redeemProblem,
         stageStatus;
 import 'package:roda_sabtu/roda_sabtu.dart'
-    show SpinConfig, SpinEligibility, SpinOdds, SpinPrize, isSaturdayWib;
+    show
+        SpinConfig,
+        SpinEligibility,
+        SpinOdds,
+        SpinPrize,
+        daysUntilSaturday,
+        isSaturdayWib;
 
+import '../core/browser.dart';
 import '../core/clock.dart';
 import '../core/feedback.dart';
 import '../core/sound.dart';
@@ -32,6 +43,9 @@ import 'app_settings.dart';
 import 'ledger.dart';
 import 'rewards_engine.dart';
 import 'shop_engine.dart';
+import 'spin_opening.dart';
+
+export 'spin_opening.dart' show SpinOpening;
 
 /// Result of [AppState.placeOrder].
 sealed class PlaceOrderResult {
@@ -66,14 +80,23 @@ class AppState extends ChangeNotifier {
     required ShopState shopState,
     required Random random,
     required bool watchDayChange,
+    required int revision,
+    required bool watchOtherTabs,
   }) : _store = store,
        _rewards = rewards,
        _shop = ShopEngine(shopState, rewards: rewards),
        _settings = settings,
        _random = random,
-       _watchDayChange = watchDayChange {
+       _watchDayChange = watchDayChange,
+       _revision = revision {
     _lastSeenDay = clock.today;
     _scheduleDayTimer();
+    if (watchOtherTabs) {
+      _stopWatchingStore = watchBrowserStorageKey(
+        appStateStorageKey,
+        () => unawaited(syncFromStore()),
+      );
+    }
   }
 
   /// Loads the saved document (or a fresh state) and builds the app state.
@@ -85,12 +108,15 @@ class AppState extends ChangeNotifier {
   /// * [random]: defaults to `Random.secure()` (spin roll and landing seed).
   /// * [watchDayChange]: schedules a rebuild at 00.00 WIB; pass false in
   ///   widget tests so no timer stays pending.
+  /// * [watchOtherTabs]: on the web, adopts what another tab of the same
+  ///   origin saves ([syncFromStore]) as soon as the browser reports it.
   static Future<AppState> load({
     KeyValueStore? store,
     DateTime Function()? now,
     SoundService? sound,
     Random? random,
     bool watchDayChange = true,
+    bool watchOtherTabs = true,
   }) async {
     var resolvedStore = store ?? _platformStore();
     AppSnapshot snapshot;
@@ -115,6 +141,8 @@ class AppState extends ChangeNotifier {
       shopState: snapshot.shop,
       random: random ?? _secureRandom(),
       watchDayChange: watchDayChange,
+      revision: snapshot.revision,
+      watchOtherTabs: watchOtherTabs,
     );
     unawaited(soundService.init());
     return state;
@@ -135,6 +163,9 @@ class AppState extends ChangeNotifier {
   Timer? _dayTimer;
   late int _lastSeenDay;
   bool _disposed = false;
+  int _revision;
+  int _adoptedUpdates = 0;
+  void Function()? _stopWatchingStore;
 
   // ----------------------------------------------------------------- services
 
@@ -173,15 +204,17 @@ class AppState extends ChangeNotifier {
   /// First Saturday after today (next week's when today is Saturday).
   int get nextSaturday => clock.nextSaturday();
 
-  /// Days from today until [nextSaturday] (1..7).
-  int get daysUntilNextSaturday => nextSaturday - today;
-
   /// Real time left until 00.00 WIB.
   Duration untilNextDay() => clock.untilNextWibMidnight();
 
   /// Rebuilds listeners when the WIB day changed (call on app resume).
+  ///
+  /// Also re-arms the 00.00 WIB timer from the wall clock: timers run on a
+  /// monotonic clock that stops while the device sleeps, so a deadline armed
+  /// before a sleep would fire late.
   void refreshDay() {
     if (_disposed) return;
+    _scheduleDayTimer();
     final current = today;
     if (current == _lastSeenDay) return;
     _lastSeenDay = current;
@@ -215,6 +248,14 @@ class AppState extends ChangeNotifier {
 
   /// Streak day the next claim will be ("Hari ke-4"), today's or tomorrow's.
   int get nextCheckInStreakDay => liveStreak + 1;
+
+  /// WIB day on which the next check-in opens: today while it is open,
+  /// otherwise the day after the last claim. That is tomorrow, or later when
+  /// the last claim is dated after today (the device clock was moved back).
+  int get nextCheckInDay {
+    final last = _rewards.lastClaimDay;
+    return last != null && last >= today ? last + 1 : today;
+  }
 
   /// Filled slots of the 7-day track (module `filledInWeek`).
   int get checkInWeekFilled =>
@@ -263,6 +304,35 @@ class AppState extends ChangeNotifier {
   /// Wheel segments for [record]: the odds at spin time, not today's stock.
   List<SpinOdds> oddsForSpin(SpinRecord record) => _rewards.oddsFor(record);
 
+  /// Product stock [record] was spun with (the stock behind [oddsForSpin]).
+  int stockForSpin(SpinRecord record) => _rewards.stockFor(record);
+
+  /// First Saturday after today on which a spin is still possible: normally
+  /// [nextSaturday]; later when the last spin is dated today or after (a spin
+  /// today, or the device clock was moved back after a spin).
+  int get nextSpinSaturday {
+    final last = lastSpin?.wibDay;
+    final from = last != null && last >= today ? last : today;
+    final days = daysUntilSaturday(from);
+    return from + (days == 0 ? 7 : days);
+  }
+
+  /// Opening of Roda Sabtu on [saturday], a WIB day after today.
+  SpinOpening spinOpeningOn(int saturday) {
+    final daysLeft = saturday - today;
+    return SpinOpening(
+      day: saturday,
+      daysLeft: daysLeft,
+      timeLeft: daysLeft <= 0
+          ? Duration.zero
+          : untilNextDay() + Duration(days: daysLeft - 1),
+    );
+  }
+
+  /// The next Roda Sabtu opening ([nextSpinSaturday], 00.00 WIB). Every
+  /// screen that tells when the wheel opens uses this, so they agree.
+  SpinOpening get nextSpinOpening => spinOpeningOn(nextSpinSaturday);
+
   /// Spins once with a secure random roll (0..9999) and landing seed.
   ///
   /// The result is final before any animation; feed `record.prizeId` and
@@ -303,7 +373,8 @@ class AppState extends ChangeNotifier {
     return missing > 0 ? missing : 0;
   }
 
-  /// Shipped orders that will complete the active stage once received.
+  /// Shipped orders that qualify for the active stage once received. Only
+  /// the first of them to be received completes it (one order, one stage).
   List<Order> get ordersAwaitingMission {
     final stage = activeMissionStage;
     if (stage == null) return const <Order>[];
@@ -314,6 +385,13 @@ class AppState extends ChangeNotifier {
               order.subtotal >= stage.minOrderSubtotal,
         )
         .toList(growable: false);
+  }
+
+  /// Whether [order] is the only shipped order that qualifies for the active
+  /// stage, so receiving it certainly issues that stage's voucher.
+  bool isOnlyOrderAwaitingMission(Order order) {
+    final waiting = ordersAwaitingMission;
+    return waiting.length == 1 && waiting.single.id == order.id;
   }
 
   // ----------------------------------------------------- vouchers & products
@@ -530,18 +608,36 @@ class AppState extends ChangeNotifier {
   /// Completes when every pending save has been written.
   Future<void> flush() => _saving;
 
+  /// Revision of the document this state was loaded from or last saved as.
+  int get revision => _revision;
+
+  /// How often this state replaced its data with a newer document saved by
+  /// another instance (a second browser tab). The shell tells the user each
+  /// time it grows.
+  int get adoptedUpdates => _adoptedUpdates;
+
   /// Snapshot of everything that is persisted.
   AppSnapshot snapshot() => AppSnapshot(
     settings: _settings,
     clockOffsetDays: clock.demoOffsetDays,
     rewards: _rewards.state,
     shop: _shop.state,
+    revision: _revision,
   );
+
+  /// Re-reads the saved document and adopts it when another instance saved
+  /// a newer revision. Runs after pending saves; returns whether it adopted.
+  Future<bool> syncFromStore() {
+    final adopted = _saving.then((_) => _adoptNewerSaved());
+    _saving = adopted.then<void>((_) {});
+    return adopted;
+  }
 
   @override
   void dispose() {
     _disposed = true;
     _dayTimer?.cancel();
+    _stopWatchingStore?.call();
     unawaited(sound.dispose());
     super.dispose();
   }
@@ -554,13 +650,27 @@ class AppState extends ChangeNotifier {
     _persist();
   }
 
+  /// Queues one save. A save first reads the stored revision: when another
+  /// instance saved after this one last read or wrote, its document wins and
+  /// is adopted (this state's newer change is dropped, the shell says so);
+  /// otherwise this state is written with the next revision.
   void _persist() {
     if (_saveQueued) return;
     _saveQueued = true;
     _saving = _saving.then((_) async {
       _saveQueued = false;
       try {
-        await snapshot().save(_store);
+        final stored = AppSnapshot.decode(
+          await _store.read(appStateStorageKey),
+        );
+        if (stored.revision > _revision) {
+          if (!_disposed) _adopt(stored);
+          _lastSaveError = null;
+          return;
+        }
+        final next = max(stored.revision, _revision) + 1;
+        await snapshot().withRevision(next).save(_store);
+        _revision = next;
         _lastSaveError = null;
       } catch (error) {
         _lastSaveError = error;
@@ -568,15 +678,47 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  Future<bool> _adoptNewerSaved() async {
+    if (_disposed) return false;
+    final AppSnapshot stored;
+    try {
+      stored = AppSnapshot.decode(await _store.read(appStateStorageKey));
+    } catch (_) {
+      // Unreadable right now: keep the current data; the next save retries.
+      return false;
+    }
+    if (_disposed || stored.revision <= _revision) return false;
+    _adopt(stored);
+    return true;
+  }
+
+  /// Replaces every piece of data with [saved] and notifies listeners.
+  void _adopt(AppSnapshot saved) {
+    final rewards = RewardsEngine(
+      saved.rewards,
+      spinConfig: _rewards.spinConfig,
+      missionStages: _rewards.missionStages,
+    );
+    _rewards = rewards;
+    _shop = ShopEngine(saved.shop, rewards: rewards);
+    _settings = saved.settings;
+    clock.demoOffsetDays = saved.clockOffsetDays;
+    sound
+      ..sfxEnabled = _settings.sfxEnabled
+      ..musicEnabled = _settings.musicEnabled;
+    haptics.enabled = _settings.hapticsEnabled;
+    _lastSeenDay = today;
+    _revision = saved.revision;
+    _adoptedUpdates++;
+    notifyListeners();
+  }
+
   void _scheduleDayTimer() {
     _dayTimer?.cancel();
     if (!_watchDayChange || _disposed) return;
     _dayTimer = Timer(
       clock.untilNextWibMidnight() + const Duration(seconds: 1),
-      () {
-        refreshDay();
-        _scheduleDayTimer();
-      },
+      refreshDay,
     );
   }
 

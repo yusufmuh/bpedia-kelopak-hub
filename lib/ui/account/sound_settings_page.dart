@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/sound.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
+import '../widgets/widgets.dart' show PageTitle, pageToolbarHeight;
 import 'account_widgets.dart';
 
 /// Akun > Suara & getar: sound effects, background music and vibration.
@@ -17,7 +18,10 @@ class SoundSettingsPage extends StatelessWidget {
     final app = AppScope.of(context);
     final settings = app.settings;
     return Scaffold(
-      appBar: AppBar(title: const Text('Suara & getar')),
+      appBar: AppBar(
+        toolbarHeight: pageToolbarHeight(context, 'Suara & getar'),
+        title: const PageTitle('Suara & getar'),
+      ),
       body: AccountListView(
         children: <Widget>[
           SettingsGroup(

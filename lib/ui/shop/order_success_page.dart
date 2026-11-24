@@ -7,8 +7,9 @@ import '../../core/format.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
 import '../../domain/shop_engine.dart';
-import '../orders/order_status_pill.dart';
 import '../orders/order_not_found.dart';
+import '../orders/order_status_pill.dart';
+import '../rewards/reward_copy.dart' show sharedStageNote;
 import '../shell.dart';
 import '../widgets/widgets.dart';
 import 'shop_layout.dart';
@@ -58,6 +59,10 @@ class _OrderSuccessPageState extends State<OrderSuccessPage> {
             order.subtotal >= stage.minOrderSubtotal
         ? stage
         : null;
+    // One order completes one stage: the voucher is certain only when no
+    // other shipped order qualifies for the same stage.
+    final missionCertain =
+        missionStage != null && app.isOnlyOrderAwaitingMission(order);
 
     return Scaffold(
       appBar: AppBar(
@@ -71,124 +76,132 @@ class _OrderSuccessPageState extends State<OrderSuccessPage> {
           const SizedBox(width: BpSpace.s1),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          BpSpace.s4,
-          0,
-          BpSpace.s4,
-          BpSpace.s6,
-        ),
-        children: <Widget>[
-          CenteredWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Image.asset(
-                  AppImages.bipyMenyapa,
-                  key: _artKey,
-                  height: large ? 120 : 168,
-                  fit: BoxFit.contain,
-                  excludeFromSemantics: true,
-                  errorBuilder: (context, error, stackTrace) =>
-                      SizedBox(height: large ? 120 : 168),
-                ),
-                const SizedBox(height: BpSpace.s4),
-                Semantics(
-                  header: true,
-                  child: Text(
-                    'Pesanan dibuat',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.displaySmall,
+      body: FocusTraversalGroup(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            BpSpace.s4,
+            0,
+            BpSpace.s4,
+            BpSpace.s6,
+          ),
+          children: <Widget>[
+            CenteredWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Image.asset(
+                    AppImages.bipyTasHati,
+                    key: _artKey,
+                    height: large ? 120 : 168,
+                    fit: BoxFit.contain,
+                    excludeFromSemantics: true,
+                    errorBuilder: (context, error, stackTrace) =>
+                        SizedBox(height: large ? 120 : 168),
                   ),
-                ),
-                const SizedBox(height: BpSpace.s1),
-                Text(
-                  'Makasih, Babes! Ini ringkasan pesananmu.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyLarge!.copyWith(
-                    color: scheme.onSurfaceVariant,
+                  const SizedBox(height: BpSpace.s4),
+                  Semantics(
+                    container: true,
+                    header: true,
+                    child: Text(
+                      'Pesanan dibuat',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.displaySmall,
+                    ),
                   ),
-                ),
-                const SizedBox(height: BpSpace.s6),
-                SoftCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: BpSpace.s2,
-                    children: <Widget>[
-                      AmountRow(label: 'No. pesanan', value: order.id),
-                      AmountRow(
-                        label: 'Tanggal',
-                        value: wibDateLabel(order.placedDay),
+                  const SizedBox(height: BpSpace.s1),
+                  Semantics(
+                    container: true,
+                    child: Text(
+                      'Makasih, Babes! Ini ringkasan pesananmu.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge!.copyWith(
+                        color: scheme.onSurfaceVariant,
                       ),
-                      if (order.voucherDiscount > 0)
+                    ),
+                  ),
+                  const SizedBox(height: BpSpace.s6),
+                  SoftCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: BpSpace.s2,
+                      children: <Widget>[
+                        AmountRow(label: 'No. pesanan', value: order.id),
                         AmountRow(
-                          label: 'Hemat dari voucher',
-                          value: rupiah(order.voucherDiscount),
-                          tone: AmountTone.saving,
+                          label: 'Tanggal',
+                          value: wibDateLabel(order.placedDay),
                         ),
-                      if (order.kelopakUsed > 0)
+                        if (order.voucherDiscount > 0)
+                          AmountRow(
+                            label: 'Hemat dari voucher',
+                            value: rupiah(order.voucherDiscount),
+                            tone: AmountTone.saving,
+                          ),
+                        if (order.kelopakUsed > 0)
+                          AmountRow(
+                            label:
+                                'Hemat dari ${kelopakLabel(order.kelopakUsed)}',
+                            value: rupiah(order.kelopakDiscount),
+                            tone: AmountTone.saving,
+                          ),
                         AmountRow(
-                          label:
-                              'Hemat dari ${kelopakLabel(order.kelopakUsed)}',
-                          value: rupiah(order.kelopakDiscount),
-                          tone: AmountTone.saving,
+                          label: 'Total bayar',
+                          value: rupiah(order.total),
+                          tone: AmountTone.total,
                         ),
-                      AmountRow(
-                        label: 'Total bayar',
-                        value: rupiah(order.total),
-                        tone: AmountTone.total,
-                      ),
-                      Semantics(
-                        label: 'Status, ${order.status.label}',
-                        excludeSemantics: true,
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: Wrap(
-                            alignment: WrapAlignment.spaceBetween,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: BpSpace.s3,
-                            runSpacing: BpSpace.s1,
-                            children: <Widget>[
-                              Text(
-                                'Status',
-                                style: theme.textTheme.bodyMedium!.copyWith(
-                                  color: scheme.onSurfaceVariant,
+                        Semantics(
+                          container: true,
+                          label: 'Status, ${order.status.label}',
+                          excludeSemantics: true,
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: BpSpace.s3,
+                              runSpacing: BpSpace.s1,
+                              children: <Widget>[
+                                Text(
+                                  'Status',
+                                  style: theme.textTheme.bodyMedium!.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
                                 ),
-                              ),
-                              OrderStatusPill(order.status),
-                            ],
+                                OrderStatusPill(order.status),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: BpSpace.s4),
-                const _NextStep(
-                  icon: Icon(Icons.local_shipping_outlined),
-                  text:
-                      'Pesanan dalam pengiriman. Tekan Pesanan Diterima di '
-                      'Transaksi setelah barang sampai.',
-                ),
-                if (missionStage != null) ...<Widget>[
-                  const SizedBox(height: BpSpace.s3),
-                  _NextStep(
-                    icon: const BrandIcon(BrandIcons.voucher),
+                  const SizedBox(height: BpSpace.s4),
+                  const _NextStep(
+                    icon: Icon(Icons.local_shipping_outlined),
                     text:
-                        'Setelah diterima, pesanan ini menyelesaikan Misi '
-                        'Belanja tahap ${missionStage.number} dan voucher '
-                        '${rupiah(missionStage.voucherAmount)} masuk ke '
-                        'Hadiahku.',
+                        'Pesanan dalam pengiriman. Tekan Pesanan Diterima di '
+                        'Transaksi setelah barang sampai.',
                   ),
+                  if (missionStage != null) ...<Widget>[
+                    const SizedBox(height: BpSpace.s3),
+                    _NextStep(
+                      icon: const BrandIcon(BrandIcons.voucher),
+                      text: missionCertain
+                          ? 'Setelah diterima, pesanan ini menyelesaikan Misi '
+                                'Belanja tahap ${missionStage.number} dan voucher '
+                                '${rupiah(missionStage.voucherAmount)} masuk ke '
+                                'Hadiahku.'
+                          : sharedStageNote(missionStage),
+                    ),
+                  ],
+                  if (large) ...<Widget>[
+                    const SizedBox(height: BpSpace.s6),
+                    const _ShopAgainButton(),
+                  ],
                 ],
-                if (large) ...<Widget>[
-                  const SizedBox(height: BpSpace.s6),
-                  const _ShopAgainButton(),
-                ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: BottomActionBar(
         child: Column(
@@ -233,30 +246,33 @@ class _NextStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        borderRadius: BorderRadius.circular(BpRadius.md),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(BpSpace.s4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            IconTheme.merge(
-              data: IconThemeData(color: scheme.secondary),
-              child: icon,
-            ),
-            const SizedBox(width: BpSpace.s3),
-            Expanded(
-              child: Text(
-                text,
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: scheme.onPrimaryContainer,
+    return Semantics(
+      container: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer,
+          borderRadius: BorderRadius.circular(BpRadius.md),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(BpSpace.s4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              IconTheme.merge(
+                data: IconThemeData(color: scheme.secondary),
+                child: icon,
+              ),
+              const SizedBox(width: BpSpace.s3),
+              Expanded(
+                child: Text(
+                  text,
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: scheme.onPrimaryContainer,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

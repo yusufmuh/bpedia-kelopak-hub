@@ -145,8 +145,9 @@ final class BpColors {
   /// Soft panels, illustrations, text on plum/night.
   final Color tulip300;
 
-  /// Secondary card background (ColorScheme.secondaryContainer; in Berry
-  /// Night also ColorScheme.primaryContainer, because [blush100] equals [card]).
+  /// Secondary card background (ColorScheme.secondaryContainer in Pearl; in
+  /// Berry Night it is ColorScheme.primaryContainer, because [blush100]
+  /// equals [card], and secondaryContainer is a step lighter).
   final Color pink200;
 
   /// Panels and active chips (ColorScheme.primaryContainer in the light theme).

@@ -31,8 +31,9 @@ class _TileData {
 }
 
 /// "Main bareng Bipy": Check-in Harian, Roda Sabtu and Misi Belanja, each
-/// with its live status. Three equal tiles in a row; they stack into full
-/// width rows when a word would not fit (narrow screens, large text).
+/// with its live status (the Roda Sabtu wait comes from [SpinCountdownBuilder],
+/// like on every other screen). Three equal tiles in a row; they stack into
+/// full width rows when a word would not fit (narrow screens, large text).
 class GameTiles extends StatelessWidget {
   const GameTiles({super.key});
 
@@ -44,10 +45,14 @@ class GameTiles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SpinCountdownBuilder(builder: _buildTiles);
+  }
+
+  Widget _buildTiles(BuildContext context, SpinOpening opening) {
     final app = AppScope.of(context);
     final tiles = <_TileData>[
       _checkInTile(context, app),
-      _wheelTile(context, app),
+      _wheelTile(context, app, opening),
       _missionTile(context, app),
     ];
     return LayoutBuilder(
@@ -126,7 +131,11 @@ class GameTiles extends StatelessWidget {
     );
   }
 
-  static _TileData _wheelTile(BuildContext context, AppState app) {
+  static _TileData _wheelTile(
+    BuildContext context,
+    AppState app,
+    SpinOpening opening,
+  ) {
     final (
       String status,
       IconData icon,
@@ -143,7 +152,7 @@ class GameTiles extends StatelessWidget {
         _TileTone.done,
       ),
       SpinEligibility.notSaturday => (
-        'Buka Sabtu · ${app.daysUntilNextSaturday} hari lagi',
+        'Buka ${opening.dayLabel} · ${opening.remainingLabel}',
         Icons.schedule_rounded,
         _TileTone.waiting,
       ),
@@ -208,47 +217,50 @@ class _GameTile extends StatelessWidget {
     final status = _TileStatus(data: data);
     final icon = IconWell(size: 44, child: data.icon);
 
+    // The card's InkWell supplies tap and keyboard focus to this node; only
+    // the visible texts are replaced by the single label.
     return Semantics(
+      container: true,
       button: true,
       label: '${data.title}, ${data.status}',
-      excludeSemantics: true,
-      onTap: data.onTap,
       child: SoftCard(
         onTap: data.onTap,
         padding: const EdgeInsets.all(GameTiles._padding),
-        child: compact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  icon,
-                  const SizedBox(height: BpSpace.s2),
-                  title,
-                  const Spacer(),
-                  const SizedBox(height: BpSpace.s2),
-                  status,
-                ],
-              )
-            : Row(
-                children: <Widget>[
-                  icon,
-                  const SizedBox(width: BpSpace.s3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        title,
-                        const SizedBox(height: BpSpace.s1),
-                        status,
-                      ],
+        child: ExcludeSemantics(
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    icon,
+                    const SizedBox(height: BpSpace.s2),
+                    title,
+                    const Spacer(),
+                    const SizedBox(height: BpSpace.s2),
+                    status,
+                  ],
+                )
+              : Row(
+                  children: <Widget>[
+                    icon,
+                    const SizedBox(width: BpSpace.s3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          title,
+                          const SizedBox(height: BpSpace.s1),
+                          status,
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: BpSpace.s2),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
+                    const SizedBox(width: BpSpace.s2),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

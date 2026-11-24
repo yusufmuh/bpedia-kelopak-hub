@@ -167,10 +167,10 @@ State terikat akun Bpedia, bukan perangkat. Klien hanya menampilkan.
 | Detail produk | Foto, nama, harga + coret, info misi aktif | Tambah ke keranjang | `lib/ui/shop/product_page.dart` |
 | Keranjang | Item + stepper, hapus dengan Urungkan, progres misi | Checkout | `lib/ui/shop/cart_page.dart` |
 | Checkout | Alamat demo, Gratis ongkir (Demo), voucher, Pakai Kelopak, rincian | Bayar sekarang (simulasi) | `lib/ui/shop/checkout_page.dart` |
-| Pesanan dibuat | Bipy + nomor pesanan | Lihat pesanan | `lib/ui/shop/order_success_page.dart` |
-| Hadiah | Saldo besar, kartu Check-in, Roda Sabtu, Misi Belanja, Hadiahku | Sesuai kartu yang siap | `lib/ui/rewards/rewards_hub_page.dart` |
+| Pesanan dibuat | Bipy dalam tas + nomor pesanan | Lihat pesanan | `lib/ui/shop/order_success_page.dart` |
+| Hadiah | Saldo besar, kartu Check-in, Roda Sabtu, Misi Belanja, Hadiahku | Ambil 1 Kelopak (langsung di kartu) atau Lihat roda (Sabtu) | `lib/ui/rewards/rewards_hub_page.dart` |
 | Check-in Harian | Kebun Bipy 7 hari, progres 30 hari, peringatan rentetan putus | Ambil 1 Kelopak | `lib/ui/rewards/checkin_page.dart` |
-| Roda Sabtu | Status, roda, tabel peluang + kuota + ongkir, kartu hasil | Putar gratis | `lib/ui/rewards/wheel_page.dart` |
+| Roda Sabtu | Status, roda, tabel peluang + kuota + ongkir, kartu hasil; bar bawah: ringkasan peluang + tombol | Putar gratis | `lib/ui/rewards/wheel_page.dart` |
 | Misi Belanja | Tangga tahap, syarat, pesanan yang menunggu, voucher saya | Belanja sekarang | `lib/ui/rewards/missions_page.dart` |
 | Hadiahku | Tab Voucher dan Produk gratis | Pakai voucher | `lib/ui/rewards/my_rewards_page.dart` |
 | Riwayat Kelopak | Ledger: tanggal WIB, keterangan, +/−, saldo berjalan | (baca) | `lib/ui/rewards/ledger_page.dart` |
@@ -202,7 +202,7 @@ Setiap keadaan didesain: kosong (Bipy ngintip + langkah berikutnya), siap, seles
 
 Proporsi 60·30·10: pearl/putih sebagai latar, blush/tulip untuk panel, pink/berry hanya untuk CTA dan harga. Status selalu teks + ikon, tidak hanya warna. Teks putih tidak dipakai di atas petal `#F7729A`.
 
-Di Berry Night, blush-100 sama dengan warna kartu, jadi isian di atas kartu (chip aktif, pill status, segmen terpilih, tile jejak check-in) memakai pink-200 gelap `#5A1A36`.
+Di Berry Night, blush-100 sama dengan warna kartu, jadi isian di atas kartu (chip aktif, pill status, segmen terpilih, tile jejak check-in) memakai pink-200 gelap `#5A1A36`; `secondaryContainer` setingkat lebih terang (`#6A2542`) supaya segmen roda yang berselang-seling tetap terlihat beda. Chip aktif selalu bergaris dan berlabel Berry.
 
 ### Tipografi dan bentuk
 

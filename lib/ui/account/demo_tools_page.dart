@@ -19,7 +19,10 @@ class DemoToolsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Mode Demo (QA)')),
+      appBar: AppBar(
+        toolbarHeight: pageToolbarHeight(context, 'Mode Demo (QA)'),
+        title: const PageTitle('Mode Demo (QA)'),
+      ),
       body: AccountListView(
         children: <Widget>[
           const InfoNote(
@@ -57,10 +60,6 @@ class _CalendarCard extends StatelessWidget {
       color: theme.colorScheme.onSurfaceVariant,
     );
     final offset = app.demoOffsetDays;
-    final saturdayHint = app.isSaturday
-        ? 'Hari ini Sabtu, Roda Sabtu buka sampai 23.59 WIB.'
-        : 'Sabtu berikutnya ${shortDateLabel(app.nextSaturday)}, '
-              '${app.daysUntilNextSaturday} hari lagi.';
     return SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,7 +77,20 @@ class _CalendarCard extends StatelessWidget {
             style: muted,
           ),
           const SizedBox(height: BpSpace.s1),
-          Text(saturdayHint, style: muted),
+          if (app.isSaturday)
+            Text(
+              'Hari ini Sabtu, Roda Sabtu buka sampai 23.59 WIB.',
+              style: muted,
+            )
+          else
+            SpinCountdownBuilder(
+              saturday: app.nextSaturday,
+              builder: (context, opening) => Text(
+                'Sabtu berikutnya ${opening.opensAtLabel}, '
+                '${opening.remainingLabel}.',
+                style: muted,
+              ),
+            ),
           const SizedBox(height: BpSpace.s4),
           Row(
             children: <Widget>[
@@ -256,6 +268,9 @@ class _ResetCard extends StatelessWidget {
         final scheme = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
           scrollable: true,
+          actionsOverflowDirection: VerticalDirection.up,
+          actionsOverflowAlignment: OverflowBarAlignment.center,
+          actionsOverflowButtonSpacing: BpSpace.s2,
           icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
           title: const Text('Reset semua data?'),
           content: const Text(

@@ -6,7 +6,7 @@ import '../../core/format.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
 import '../../domain/rewards_engine.dart';
-import '../shop/cart_page.dart';
+import '../shop/shop_navigation.dart' show openCartFromRewards;
 import '../widgets/widgets.dart';
 import 'checkin_page.dart';
 import 'missions_page.dart';
@@ -34,13 +34,15 @@ class MyRewardsPage extends StatelessWidget {
         Tab(text: 'Produk gratis'),
       ],
     );
+    const title = 'Hadiahku';
     return DefaultTabController(
       length: MyRewardsTab.values.length,
       initialIndex: initialTab.index,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Hadiahku'),
-          actions: demoAppBarActions,
+          toolbarHeight: pageToolbarHeight(context, title),
+          title: const PageTitle(title),
+          actions: demoAppBarActions(context),
           bottom: PreferredSize(
             preferredSize: tabBar.preferredSize,
             child: ContentWidth(child: tabBar),
@@ -64,14 +66,23 @@ class _VoucherTab extends StatelessWidget {
     final vouchers = app.vouchers;
     if (vouchers.isEmpty) {
       return ScrollableCenter(
-        child: EmptyState(
-          imageAsset: AppImages.bipyNgintip,
-          title: 'Belum ada voucher',
-          body:
-              'Selesaikan Misi Belanja untuk dapat voucher belanja '
-              'berikutnya.',
-          actionLabel: 'Lihat Misi Belanja',
-          onAction: () => openRewardsPage(context, const MissionsPage()),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: BpSpace.s4),
+              child: DemoBodyChip(),
+            ),
+            EmptyState(
+              imageAsset: AppImages.bipyNgintip,
+              title: 'Belum ada voucher',
+              body:
+                  'Selesaikan Misi Belanja untuk dapat voucher belanja '
+                  'berikutnya.',
+              actionLabel: 'Lihat Misi Belanja',
+              onAction: () => openRewardsPage(context, const MissionsPage()),
+            ),
+          ],
         ),
       );
     }
@@ -84,14 +95,20 @@ class _VoucherTab extends StatelessWidget {
           return RewardsContent(
             child: Padding(
               padding: const EdgeInsets.only(bottom: BpSpace.s3),
-              child: Text(
-                active == 0
-                    ? 'Belum ada voucher aktif. Voucher terpakai dan '
-                          'kedaluwarsa tetap tercatat di sini.'
-                    : '$active voucher aktif. Pilih voucher saat checkout.',
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const DemoBodyChip(),
+                  Text(
+                    active == 0
+                        ? 'Belum ada voucher aktif. Voucher terpakai dan '
+                              'kedaluwarsa tetap tercatat di sini.'
+                        : '$active voucher aktif. Pilih voucher saat checkout.',
+                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -102,7 +119,7 @@ class _VoucherTab extends StatelessWidget {
             child: VoucherCard(
               voucher: vouchers[index - 1],
               today: app.today,
-              onUse: () => openRewardsPage(context, const CartPage()),
+              onUse: () => openCartFromRewards(context),
             ),
           ),
         );
@@ -119,14 +136,23 @@ class _ProductTab extends StatelessWidget {
     final entitlements = AppScope.of(context).entitlements;
     if (entitlements.isEmpty) {
       return ScrollableCenter(
-        child: EmptyState(
-          imageAsset: AppImages.bipyNgintip,
-          title: 'Belum ada produk gratis',
-          body:
-              'Check-in 30 hari beruntun atau coba Roda Sabtu untuk dapat '
-              'produk gratis.',
-          actionLabel: 'Ke Check-in Harian',
-          onAction: () => openRewardsPage(context, const CheckInPage()),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: BpSpace.s4),
+              child: DemoBodyChip(),
+            ),
+            EmptyState(
+              imageAsset: AppImages.bipyNgintip,
+              title: 'Belum ada produk gratis',
+              body:
+                  'Check-in 30 hari beruntun atau coba Roda Sabtu untuk dapat '
+                  'produk gratis.',
+              actionLabel: 'Ke Check-in Harian',
+              onAction: () => openRewardsPage(context, const CheckInPage()),
+            ),
+          ],
         ),
       );
     }
@@ -138,13 +164,19 @@ class _ProductTab extends StatelessWidget {
           return const RewardsContent(
             child: Padding(
               padding: EdgeInsets.only(bottom: BpSpace.s3),
-              child: StatusBanner(
-                icon: Icons.local_shipping_outlined,
-                tone: StatusTone.info,
-                title: 'Produk gratis dikirim tim Bpedia',
-                detail: Text(
-                  'Di Mode Demo, statusnya tetap menunggu pengiriman.',
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  DemoBodyChip(),
+                  StatusBanner(
+                    icon: Icons.local_shipping_outlined,
+                    tone: StatusTone.info,
+                    title: 'Produk gratis dikirim tim Bpedia',
+                    detail: Text(
+                      'Di Mode Demo, statusnya tetap menunggu pengiriman.',
+                    ),
+                  ),
+                ],
               ),
             ),
           );

@@ -18,23 +18,35 @@ class LedgerPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final history = app.ledgerHistory;
+    const title = 'Riwayat Kelopak';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Riwayat Kelopak'),
-        actions: demoAppBarActions,
+        toolbarHeight: pageToolbarHeight(context, title),
+        title: const PageTitle(title),
+        actions: demoAppBarActions(context),
       ),
       body: SafeArea(
         top: false,
         child: history.isEmpty
             ? ScrollableCenter(
-                child: EmptyState(
-                  imageAsset: AppImages.bipyNgintip,
-                  title: 'Belum ada Kelopak',
-                  body:
-                      'Check-in hari ini dan Kelopak pertamamu langsung '
-                      'masuk.',
-                  actionLabel: 'Ambil Kelopak pertamamu',
-                  onAction: () => openRewardsPage(context, const CheckInPage()),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: BpSpace.s4),
+                      child: DemoBodyChip(),
+                    ),
+                    EmptyState(
+                      imageAsset: AppImages.bipyNgintip,
+                      title: 'Belum ada Kelopak',
+                      body:
+                          'Check-in hari ini dan Kelopak pertamamu langsung '
+                          'masuk.',
+                      actionLabel: 'Ambil Kelopak pertamamu',
+                      onAction: () =>
+                          openRewardsPage(context, const CheckInPage()),
+                    ),
+                  ],
                 ),
               )
             : _LedgerList(balance: app.balance, groups: _groupByDay(history)),
@@ -81,7 +93,15 @@ class _LedgerList extends StatelessWidget {
             0,
           ),
           sliver: SliverToBoxAdapter(
-            child: RewardsContent(child: _BalanceSummary(balance: balance)),
+            child: RewardsContent(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const DemoBodyChip(),
+                  _BalanceSummary(balance: balance),
+                ],
+              ),
+            ),
           ),
         ),
         SliverPadding(

@@ -89,6 +89,10 @@ class ShellScope extends InheritedNotifier<ShellController> {
 /// alive afterwards) with a [NavigationBar]. The Hadiah tab shows a dot when
 /// the check-in or the Saturday spin is available, and holds background music
 /// while selected. Back on a non-home tab returns to Beranda.
+///
+/// Keyboard focus moves through the visible tab first and then through the
+/// navigation bar (two traversal groups). When another browser tab saved
+/// newer data and this one adopted it, a snack bar says so.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -103,6 +107,7 @@ class _AppShellState extends State<AppShell> {
   AppState? _app;
   SoundService? _sound;
   bool _holdingMusic = false;
+  int _seenAdoptions = 0;
 
   @override
   void initState() {
@@ -114,7 +119,11 @@ class _AppShellState extends State<AppShell> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final app = AppScope.read(context);
-    _app = app;
+    if (!identical(app, _app)) {
+      _app?.removeListener(_onAppChanged);
+      _app = app..addListener(_onAppChanged);
+      _seenAdoptions = app.adoptedUpdates;
+    }
     _sound = app.sound;
     final controller = ShellScope.of(context).controller;
     if (!identical(controller, _controller)) {
@@ -127,9 +136,22 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _app?.removeListener(_onAppChanged);
     _controller?.removeListener(_syncMusic);
     if (_holdingMusic) _sound?.stopMusic();
     super.dispose();
+  }
+
+  /// Tells the user when the data was replaced by what another tab saved.
+  void _onAppChanged() {
+    final app = _app;
+    if (app == null || app.adoptedUpdates == _seenAdoptions) return;
+    _seenAdoptions = app.adoptedUpdates;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('Data diperbarui dari tab lain.')),
+      );
   }
 
   void _syncMusic() {
@@ -189,40 +211,47 @@ class _AppShellState extends State<AppShell> {
           if (!didPop) ShellScope.of(context).switchTab(ShellTab.home);
         },
         child: Scaffold(
-          body: IndexedStack(
-            index: tab.index,
-            children: <Widget>[
-              for (final candidate in ShellTab.values)
-                _TabSlot(
-                  active: candidate == tab,
-                  child: _visited.contains(candidate)
-                      ? _pageFor(candidate)
-                      : const SizedBox.shrink(),
-                ),
-            ],
-          ),
-          bottomNavigationBar: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: scheme.outlineVariant)),
-            ),
-            child: NavigationBar(
-              selectedIndex: tab.index,
-              onDestinationSelected: _select,
-              destinations: <Widget>[
+          body: FocusTraversalGroup(
+            child: IndexedStack(
+              index: tab.index,
+              children: <Widget>[
                 for (final candidate in ShellTab.values)
-                  NavigationDestination(
-                    label: candidate.label,
-                    icon: _NavIcon(
-                      name: BrandIcons.mono(candidate.iconName),
-                      color: scheme.onSurfaceVariant,
-                      showDot: candidate == ShellTab.rewards && rewardsReady,
-                    ),
-                    selectedIcon: _NavIcon(
-                      name: candidate.iconName,
-                      showDot: candidate == ShellTab.rewards && rewardsReady,
-                    ),
+                  _TabSlot(
+                    active: candidate == tab,
+                    child: _visited.contains(candidate)
+                        ? _pageFor(candidate)
+                        : const SizedBox.shrink(),
                   ),
               ],
+            ),
+          ),
+          bottomNavigationBar: FocusTraversalGroup(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: scheme.outlineVariant)),
+              ),
+              child: NavigationBar(
+                selectedIndex: tab.index,
+                onDestinationSelected: _select,
+                destinations: <Widget>[
+                  for (final candidate in ShellTab.values)
+                    NavigationDestination(
+                      label: candidate.label,
+                      // The label is always shown; a tooltip would only
+                      // repeat it (and could stay on screen after a switch).
+                      tooltip: '',
+                      icon: _NavIcon(
+                        name: BrandIcons.mono(candidate.iconName),
+                        color: scheme.onSurfaceVariant,
+                        showDot: candidate == ShellTab.rewards && rewardsReady,
+                      ),
+                      selectedIcon: _NavIcon(
+                        name: candidate.iconName,
+                        showDot: candidate == ShellTab.rewards && rewardsReady,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -245,7 +274,9 @@ class _AppShellState extends State<AppShell> {
 }
 
 /// Keeps an inactive tab alive but paused: no tickers, no focus, and no
-/// hero flights out of a tab the user cannot see.
+/// hero flights out of a tab the user cannot see. Each tab has its own
+/// [Overlay], so overlay content of a tab (tooltips) is drawn inside it and
+/// hidden together with it instead of staying on top of the next tab.
 class _TabSlot extends StatelessWidget {
   const _TabSlot({required this.active, required this.child});
 
@@ -258,7 +289,10 @@ class _TabSlot extends StatelessWidget {
       enabled: active,
       child: HeroMode(
         enabled: active,
-        child: ExcludeFocus(excluding: !active, child: child),
+        child: ExcludeFocus(
+          excluding: !active,
+          child: Overlay.wrap(child: child),
+        ),
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../../core/tokens.dart';
 import '../../data/catalog.dart';
 import '../../domain/app_state.dart';
 import '../../domain/shop_engine.dart';
+import '../rewards/reward_copy.dart' show sharedStageNote;
 import '../shop/shop_layout.dart';
 import '../shop/shop_navigation.dart';
 import '../widgets/widgets.dart';
@@ -33,6 +34,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        // When the buttons do not fit side by side they stack with the
+        // primary one on top, both centred.
+        actionsOverflowDirection: VerticalDirection.up,
+        actionsOverflowAlignment: OverflowBarAlignment.center,
+        actionsOverflowButtonSpacing: BpSpace.s2,
         title: const Text('Pesanan sudah diterima?'),
         content: const Text(
           'Pastikan semua barang sudah sampai dengan baik. Status pesanan '
@@ -133,46 +139,51 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     final shipped = order.status == OrderStatus.shipped;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detail pesanan')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          BpSpace.s4,
-          BpSpace.s2,
-          BpSpace.s4,
-          BpSpace.s6,
-        ),
-        children: <Widget>[
-          CenteredWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _OrderHeader(order: order),
-                _MissionNote(order: order),
-                const SizedBox(height: BpSpace.s6),
-                const SectionHeader('Status'),
-                const SizedBox(height: BpSpace.s3),
-                SoftCard(child: _StatusTimeline(order: order)),
-                const SizedBox(height: BpSpace.s6),
-                SectionHeader('Produk (${order.itemCount})'),
-                const SizedBox(height: BpSpace.s3),
-                SoftCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: BpSpace.s3,
-                    children: <Widget>[
-                      for (final line in order.lines)
-                        _OrderLineTile(line: line),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: BpSpace.s6),
-                const SectionHeader('Rincian pembayaran'),
-                const SizedBox(height: BpSpace.s3),
-                SoftCard(child: _OrderAmounts(order: order)),
-              ],
-            ),
+      appBar: AppBar(
+        toolbarHeight: pageToolbarHeight(context, 'Detail pesanan'),
+        title: const PageTitle('Detail pesanan'),
+      ),
+      body: FocusTraversalGroup(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            BpSpace.s4,
+            BpSpace.s2,
+            BpSpace.s4,
+            BpSpace.s6,
           ),
-        ],
+          children: <Widget>[
+            CenteredWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _OrderHeader(order: order),
+                  _MissionNote(order: order),
+                  const SizedBox(height: BpSpace.s6),
+                  const SectionHeader('Status'),
+                  const SizedBox(height: BpSpace.s3),
+                  SoftCard(child: _StatusTimeline(order: order)),
+                  const SizedBox(height: BpSpace.s6),
+                  SectionHeader('Produk (${order.itemCount})'),
+                  const SizedBox(height: BpSpace.s3),
+                  SoftCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: BpSpace.s3,
+                      children: <Widget>[
+                        for (final line in order.lines)
+                          _OrderLineTile(line: line),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: BpSpace.s6),
+                  const SectionHeader('Rincian pembayaran'),
+                  const SizedBox(height: BpSpace.s3),
+                  SoftCard(child: _OrderAmounts(order: order)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: shipped
           ? BottomActionBar(
@@ -200,27 +211,29 @@ class _OrderHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SoftCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Text(
-            'No. pesanan',
-            style: theme.textTheme.labelMedium!.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: MergeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(
+              'No. pesanan',
+              style: theme.textTheme.labelMedium!.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: BpSpace.s2,
-            runSpacing: BpSpace.s2,
-            children: <Widget>[
-              Text(order.id, style: theme.textTheme.titleMedium),
-              OrderStatusPill(order.status),
-            ],
-          ),
-        ],
+            const SizedBox(height: 2),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: BpSpace.s2,
+              runSpacing: BpSpace.s2,
+              children: <Widget>[
+                Text(order.id, style: theme.textTheme.titleMedium),
+                OrderStatusPill(order.status),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -243,12 +256,18 @@ class _MissionNote extends StatelessWidget {
           'Pesanan ini menyelesaikan Misi Belanja tahap ${issued.stageNumber}. '
           'Voucher ${rupiah(issued.amount)} ada di Hadiahku.';
     } else if (order.status == OrderStatus.shipped && stage != null) {
-      message = order.subtotal >= stage.minOrderSubtotal
-          ? 'Tekan Pesanan Diterima setelah barang sampai untuk menyelesaikan '
-                'Misi Belanja tahap ${stage.number}.'
-          : 'Subtotal pesanan ini belum mencapai min. '
-                '${rupiah(stage.minOrderSubtotal)} untuk Misi Belanja tahap '
-                '${stage.number}.';
+      if (order.subtotal < stage.minOrderSubtotal) {
+        message =
+            'Subtotal pesanan ini belum mencapai min. '
+            '${rupiah(stage.minOrderSubtotal)} untuk Misi Belanja tahap '
+            '${stage.number}.';
+      } else if (app.isOnlyOrderAwaitingMission(order)) {
+        message =
+            'Tekan Pesanan Diterima setelah barang sampai untuk menyelesaikan '
+            'Misi Belanja tahap ${stage.number}.';
+      } else {
+        message = sharedStageNote(stage);
+      }
     } else {
       message = null;
     }
@@ -257,27 +276,30 @@ class _MissionNote extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: BpSpace.s3),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.primaryContainer,
-          borderRadius: BorderRadius.circular(BpRadius.md),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(BpSpace.s4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const BrandIcon(BrandIcons.voucher),
-              const SizedBox(width: BpSpace.s3),
-              Expanded(
-                child: Text(
-                  message,
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: scheme.onPrimaryContainer,
+      child: Semantics(
+        container: true,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer,
+            borderRadius: BorderRadius.circular(BpRadius.md),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(BpSpace.s4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const BrandIcon(BrandIcons.voucher),
+                const SizedBox(width: BpSpace.s3),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color: scheme.onPrimaryContainer,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -354,6 +376,7 @@ class _TimelineRow extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Semantics(
+      container: true,
       label: '${step.title}, ${step.detail}, ${step.done ? 'sudah' : 'belum'}',
       excludeSemantics: true,
       child: IntrinsicHeight(
@@ -457,17 +480,24 @@ class _OrderLineTile extends StatelessWidget {
         ),
       ],
     );
-    if (!inCatalog) return content;
+    final label = '${line.name}, ${line.qty} barang, ${rupiah(line.lineTotal)}';
+    if (!inCatalog) {
+      return Semantics(
+        container: true,
+        label: label,
+        child: ExcludeSemantics(child: content),
+      );
+    }
+    // The InkWell gives this node its tap action and keyboard focus.
     return Semantics(
+      container: true,
       button: true,
-      label: '${line.name}, ${line.qty} barang, ${rupiah(line.lineTotal)}',
+      label: label,
       hint: 'Lihat produk',
-      excludeSemantics: true,
-      onTap: () => openProduct(context, line.productId),
       child: InkWell(
         onTap: () => openProduct(context, line.productId),
         borderRadius: BorderRadius.circular(BpRadius.sm),
-        child: content,
+        child: ExcludeSemantics(child: content),
       ),
     );
   }

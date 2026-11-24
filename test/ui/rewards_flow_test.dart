@@ -10,6 +10,8 @@ import 'package:kelopak_hub/ui/rewards/my_rewards_page.dart';
 import 'package:kelopak_hub/ui/rewards/rewards_hub_page.dart';
 import 'package:kelopak_hub/ui/rewards/wheel_page.dart';
 import 'package:kelopak_hub/ui/shell.dart';
+import 'package:roda_sabtu/roda_sabtu.dart'
+    show OddsTable, SaturdayWheel, SpinOdds;
 
 import '../support/navigation.dart';
 import '../support/test_app_state.dart';
@@ -38,16 +40,33 @@ void main() {
     await _pumpFor(tester, const Duration(milliseconds: 600));
     expect(find.byType(RewardsHubPage), findsOneWidget);
     expect(find.text('Siap diambil'), findsOneWidget);
+    expect(find.text('Check-in sekarang'), findsNothing);
 
-    await tester.ensureVisible(find.text('Check-in sekarang'));
+    // One tap on Hadiah claims, like on Beranda: same label, same flow.
+    final hubClaim = find.widgetWithText(FilledButton, 'Ambil 1 Kelopak');
+    await tester.ensureVisible(hubClaim);
     await tester.pump();
-    await tester.tap(find.text('Check-in sekarang'));
+    await tester.tap(hubClaim);
+    await _pumpFor(tester, const Duration(milliseconds: 1200));
+    expect(find.byType(CheckInPage), findsNothing);
+    expect(_inSheet(find.text('Yay, Babes! +1 Kelopak masuk')), findsOneWidget);
+    expect(_inSheet(find.text('Hari ke-1 beruntun')), findsOneWidget);
+    expect(
+      _inSheet(find.text('Lihat hadiah')),
+      findsNothing,
+      reason: 'already on the Hadiah tab',
+    );
+    await tester.tap(_inSheet(find.text('Oke')));
+    await _pumpFor(tester, const Duration(milliseconds: 600));
+    expect(state.balance, 1);
+    expect(find.text('Sudah check-in hari ini'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Lihat progres'));
+    await tester.pump();
+    await tester.tap(find.text('Lihat progres'));
     await _pumpFor(tester, const Duration(milliseconds: 800));
     expect(find.byType(CheckInPage), findsOneWidget);
-    expect(find.text('Mulai rentetan baru hari ini'), findsOneWidget);
-
-    await _claimAndClose(tester, expectedLine: 'Hari ke-1 beruntun');
-    expect(state.balance, 1);
+    expect(find.text('Hari ke-1 beruntun'), findsOneWidget);
     expect(
       _inPage<CheckInPage>(find.text('Sudah check-in hari ini')),
       findsOneWidget,
@@ -165,7 +184,20 @@ void main() {
     await tester.tapBack();
     await _pumpFor(tester, const Duration(milliseconds: 800));
     expect(find.text('Hasil Sabtu ini: Produk gratis'), findsOneWidget);
-    expect(find.text('Kuota habis'), findsOneWidget);
+    // The table shows the odds this spin was made with, the same as the
+    // wheel's segments (the product segment stays under the pointer).
+    expect(state.productStock, 0);
+    expect(find.text('Peluang saat kamu memutar Sabtu ini'), findsOneWidget);
+    final wheel = tester.widget<SaturdayWheel>(find.byType(SaturdayWheel));
+    final table = tester.widget<OddsTable>(find.byType(OddsTable));
+    List<String> describe(List<SpinOdds> odds) => <String>[
+      for (final entry in odds) '${entry.prize.id}:${entry.weight}',
+    ];
+    expect(describe(table.odds), describe(wheel.odds));
+    expect(describe(table.odds), <String>['product:1000', 'kelopak-3:9000']);
+    expect(table.productStock, 1);
+    expect(find.text('Sisa kuota: 1'), findsOneWidget);
+    expect(find.text('Kuota habis'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     state.dispose();

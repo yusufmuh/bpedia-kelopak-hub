@@ -114,7 +114,10 @@ void main() {
         find.textContaining('Sudah check-in · Hari ke-1 beruntun'),
         findsOneWidget,
       );
-      expect(find.textContaining('Buka Sabtu · 4 hari lagi'), findsOneWidget);
+      expect(
+        find.textContaining('Buka Sabtu, 28 Nov · 4 hari lagi'),
+        findsOneWidget,
+      );
 
       // Search, open the product, add it and jump to the cart.
       await _tapText(tester, 'Cari skincare, makeup, lashes…');

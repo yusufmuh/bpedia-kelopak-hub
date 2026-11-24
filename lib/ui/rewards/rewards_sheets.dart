@@ -13,7 +13,7 @@ import '../../core/assets.dart';
 import '../../core/format.dart';
 import '../../domain/app_state.dart';
 import '../../domain/ledger.dart' show rupiahPerKelopak;
-import '../../domain/rewards_engine.dart' show kelopakMaxDiscountPercent;
+import '../../domain/rewards_engine.dart' show kelopakCapRule;
 import 'rewards_widgets.dart';
 
 /// "7, 14, 21, …" for [every].
@@ -68,10 +68,7 @@ Future<void> showKelopakRulesSheet(BuildContext context) {
             '1x putar gratis tiap Sabtu: produk atau Kelopak',
           ),
           const RuleRow('Misi Belanja', 'Voucher untuk belanja berikutnya'),
-          const RuleRow(
-            'Pakai di checkout',
-            'Maks. $kelopakMaxDiscountPercent% dari total belanja (Demo)',
-          ),
+          const RuleRow('Pakai di checkout', kelopakCapRule),
         ],
       ),
       const SizedBox(height: 16),

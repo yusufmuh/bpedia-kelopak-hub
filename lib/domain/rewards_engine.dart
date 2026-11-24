@@ -39,6 +39,12 @@ import 'ledger.dart';
 /// Maximum share of the payable amount that Kelopak may cover (Demo rule).
 const int kelopakMaxDiscountPercent = 50;
 
+/// The Kelopak checkout limit in the words every screen uses (checkout,
+/// "Cara kerja Kelopak", Syarat & Ketentuan). It matches [RewardsEngine.maxKelopakFor]:
+/// the base is the total after the voucher, not the subtotal.
+const String kelopakCapRule =
+    'Maks. $kelopakMaxDiscountPercent% dari total setelah voucher (Demo)';
+
 /// Product stock of the Roda Sabtu demo campaign (and the value a refill restores).
 const int demoSpinProductStock = 1;
 
@@ -587,16 +593,19 @@ final class RewardsEngine {
 
   /// Odds the wheel was spun with for [record], from the stock saved with it,
   /// so the result stays under the pointer after a restart, even when that
-  /// spin took the last product. Older records without the stock assume
-  /// stock for a product win and the current stock otherwise.
-  List<SpinOdds> oddsFor(SpinRecord record) {
+  /// spin took the last product.
+  List<SpinOdds> oddsFor(SpinRecord record) =>
+      effectiveOdds(spinConfig, productStock: stockFor(record));
+
+  /// Product stock right before [record] was spun. Older records without the
+  /// saved stock assume stock for a product win and the current stock
+  /// otherwise.
+  int stockFor(SpinRecord record) {
     final current = _state.productStock;
-    final stock =
-        record.productStockBefore ??
+    return record.productStockBefore ??
         (prizeById(record.prizeId)?.kind == PrizeKind.product && current < 1
             ? 1
             : current);
-    return effectiveOdds(spinConfig, productStock: stock);
   }
 
   /// Prize with [id] in [spinConfig], or null when unknown.

@@ -8,7 +8,7 @@ import '../../core/format.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
 import '../../domain/ledger.dart' show rupiahPerKelopak;
-import '../../domain/rewards_engine.dart' show kelopakMaxDiscountPercent;
+import '../../domain/rewards_engine.dart' show kelopakCapRule;
 import '../widgets/widgets.dart';
 import 'account_widgets.dart';
 
@@ -30,7 +30,10 @@ class TermsPage extends StatelessWidget {
       _demoSection(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('Syarat & Ketentuan')),
+      appBar: AppBar(
+        toolbarHeight: pageToolbarHeight(context, 'Syarat & Ketentuan'),
+        title: const PageTitle('Syarat & Ketentuan'),
+      ),
       body: AccountListView(
         children: <Widget>[
           const _TermsIntro(),
@@ -50,8 +53,8 @@ class TermsPage extends StatelessWidget {
       '1 Kelopak = ${rupiah(rupiahPerKelopak)}. Kelopak selalu bilangan '
           'bulat dan saldonya tidak pernah minus.',
       'Kelopak didapat dari Check-in Harian dan Roda Sabtu.',
-      'Saat checkout, Kelopak bisa dipakai sebagai potongan, maks. '
-          '$kelopakMaxDiscountPercent% dari total setelah voucher (Demo).',
+      'Saat checkout, Kelopak bisa dipakai sebagai potongan. '
+          '$kelopakCapRule.',
       'Setiap Kelopak yang masuk dan terpakai tercatat di Riwayat Kelopak.',
     ]);
   }

@@ -48,6 +48,7 @@ class QuantityStepper extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 32),
             child: Semantics(
+              container: true,
               label: 'Jumlah',
               value: '$value',
               liveRegion: true,

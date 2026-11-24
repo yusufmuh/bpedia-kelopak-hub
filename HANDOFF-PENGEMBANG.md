@@ -56,7 +56,7 @@ Tiap modul punya `README.md` (cara pakai API) dan `PRD.md` (aturan lengkap). Tag
 | Chrome | terbaru | `flutter run -d chrome` |
 | PHP | 8.2+ dengan `pdo_sqlite` (diuji dengan 8.4) | simulator server opsional |
 
-Versi paket dikunci di `pubspec.yaml` dan sudah dicek resolve di SDK ini: audioplayers 6.7.1, shared_preferences 2.5.6, flutter_svg 2.3.4, url_launcher 6.3.3 (dev: flutter_launcher_icons 0.14.4, flutter_native_splash 2.4.7, flutter_lints 6.0.0). Versi lebih baru beberapa paket tersebut tidak resolve di Flutter 3.41.7 (lihat `docs/research/RISET-2026-11-24.md` §6).
+Versi paket dikunci di `pubspec.yaml` dan sudah dicek resolve di SDK ini: audioplayers 6.7.1, shared_preferences 2.5.6, flutter_svg 2.3.4, url_launcher 6.3.3, web 1.1.1 (hanya dipakai build web, lewat impor kondisional `lib/core/browser.dart`) (dev: flutter_launcher_icons 0.14.4, flutter_native_splash 2.4.7, flutter_lints 6.0.0). Versi lebih baru beberapa paket tersebut tidak resolve di Flutter 3.41.7 (lihat `docs/research/RISET-2026-11-24.md` §6).
 
 ## 4. Menjalankan
 
@@ -73,8 +73,8 @@ Catatan web: suara baru bisa diputar setelah ada sentuhan/klik pertama (aturan a
 
 ## 5. Mode Demo
 
-- **Penyimpanan:** satu dokumen JSON di shared_preferences, kunci `bpedia_preview_state_v1`, `"schema": 1` (Android: DataStore, iOS: NSUserDefaults, web: localStorage). Dokumen rusak atau skema tak dikenal: app mulai dari data baru tanpa crash. Pengaturan suara dan tema ikut tersimpan.
-- **Jam:** hari dihitung dalam WIB (UTC+7) dari jam perangkat, ditambah offset Mode Demo. App membangun ulang tampilan tepat pukul 00.00 WIB dan saat kembali dari latar belakang.
+- **Penyimpanan:** satu dokumen JSON di shared_preferences, kunci `bpedia_preview_state_v1`, `"schema": 1` (Android: DataStore, iOS: NSUserDefaults, web: localStorage). Dokumen rusak atau skema tak dikenal: app mulai dari data baru tanpa crash. Pengaturan suara dan tema ikut tersimpan. Dokumen punya `revision`: dua tab browser pada origin yang sama tidak saling menimpa. Tab yang tertinggal mengambil data terbaru (event `storage`, atau saat menyimpan) dan menampilkan "Data diperbarui dari tab lain."; perubahan terakhirnya di tab itu tidak disimpan.
+- **Jam:** hari dihitung dalam WIB (UTC+7) dari jam perangkat, ditambah offset Mode Demo. App membangun ulang tampilan tepat pukul 00.00 WIB dan saat kembali dari latar belakang; timer 00.00 dipasang ulang dari jam dinding setiap kali app kembali aktif (timer berhenti saat ponsel tidur). Bila jam perangkat dimundurkan setelah check-in atau putaran, teks menyebut tanggal sebenarnya ("Check-in berikutnya 1 Des …", "Putaran Sabtu 28 Nov sudah tercatat").
 - **Alat QA:** **Akun > Mode Demo (QA)**
   - tanggal simulasi saat ini + selisih dari tanggal asli;
   - tombol **+1 hari**, **+7 hari**, **Lompat ke Sabtu berikutnya** (kalender demo hanya bisa maju);
@@ -116,7 +116,10 @@ Aturan penting:
 - **Umpan balik:** `AppState.feedback(FeedbackEvent.x)` memutar suara + getar sesuai pengaturan; visual (`PetalBurst`, `showRewardResultSheet`) di layar. Musik latar hanya di tab Hadiah dan layar game (`BgmScope`), bawaan mati.
 - **Bahasa:** `MaterialApp` memakai locale tunggal `id` dengan `GlobalMaterialLocalizations.delegates` (`BpediaApp.locale`, `BpediaApp.localizationsDelegates`), jadi tooltip dan label bawaan juga berbahasa Indonesia ("Kembali", "Tutup"). Di tes widget pakai `tester.tapBack()` dari `test/support/navigation.dart`, bukan `tester.pageBack()` yang mencari tooltip Inggris "Back".
 - **Tema:** tombol berbentuk pil (52 dp, padding 24); Berry Night memakai pink-200 gelap untuk `primaryContainer` dan isian `surfaceContainer` di atas kartu, karena token blush gelap sama dengan warna kartu. Jangan menambal warna per layar.
-- **Roda tersimpan:** `SpinRecord` menyimpan `productStockBefore`; `AppState.oddsForSpin(record)` memberi segmen roda saat putaran itu, sehingga hasil tetap di bawah jarum setelah app dibuka ulang meskipun produk terakhir sudah dimenangkan.
+- **Roda tersimpan:** `SpinRecord` menyimpan `productStockBefore`; `AppState.oddsForSpin(record)` dan `stockForSpin(record)` memberi segmen roda dan isi tabel peluang saat putaran itu, sehingga hasil tetap di bawah jarum setelah app dibuka ulang meskipun produk terakhir sudah dimenangkan, dan tabel tidak bertentangan dengan roda.
+- **Hitung mundur Roda Sabtu:** satu sumber, `AppState.nextSpinOpening` (`SpinOpening`: `opensAtLabel` "Sabtu, 28 Nov · 00.00 WIB", `remainingLabel` "3 hari lagi" / pada hari Jumat "22 jam 40 menit lagi"), ditampilkan lewat `SpinCountdownBuilder`/`SpinCountdownText` (`lib/ui/widgets/spin_countdown.dart`). Jangan menghitung selisih hari sendiri di layar.
+- **Kurangi gerakan:** `ReduceMotionScope` (di `BpediaApp.builder`) menggabungkan hapus animasi Android, Reduce Motion iOS, dan `prefers-reduced-motion` browser ke `MediaQuery.disableAnimations`. Widget cukup membaca `MediaQuery.disableAnimationsOf`.
+- **Semantics:** kartu yang bisa diketuk memakai pola `Semantics(container: true, button: true, label: …, child: SoftCard(onTap: …, child: ExcludeSemantics(child: …)))`: InkWell memberi aksi tap dan fokus keyboard ke node yang sama. Jangan memakai `excludeSemantics: true` + `onTap` di sekitar InkWell (fokus keyboard hilang di web). Blok teks lepas di dalam daftar dibungkus `Semantics(container: true)` atau `MergeSemantics`.
 
 ## 7. Spesifikasi
 
@@ -138,10 +141,12 @@ cd bpedia-kelopak-hub
 flutter build apk --release
 # hasil: build/app/outputs/flutter-apk/app-release.apk (universal, semua arsitektur)
 
-flutter build apk --release --split-per-abi   # opsional: satu APK lebih kecil per arsitektur
+flutter build apk --release --split-per-abi   # opsional: satu APK lebih kecil per arsitektur (lihat catatan versionCode)
 ```
 
-APK berisi paket `id.bpedia.preview`, label "Bpedia Demo", `versionCode` 20 / `versionName` 2.0.0, minSdk 24 (Android 7.0+), targetSdk 36 (dicek dengan `aapt dump badging` pada build 24 Nov 2026).
+APK universal berisi paket `id.bpedia.preview`, label "Bpedia Demo", `versionCode` 20 (APK universal) / `versionName` 2.0.0, minSdk 24 (Android 7.0+), targetSdk 36 (dicek dengan `aapt2 dump badging`, 25 Nov 2026). APK universal memuat ketiga ABI (sekitar 55 MiB); APK arm64 hasil split sekitar 21 MiB.
+
+**Catatan versionCode APK split.** `--split-per-abi` memberi tiap APK `versionCode` = kode ABI × 1000 + nomor build: untuk `2.0.0+20` menjadi armeabi-v7a **1020**, arm64-v8a **2020**, x86_64 **4020** (universal tetap 20). Satu penguji sebaiknya tetap di satu jalur. Penguji yang pindah dari APK split ke APK universal harus menghapus app dulu (data Mode Demo di perangkat ikut hilang), kecuali nomor build universal dinaikkan di atas `versionCode` split yang terpasang. Untuk satu berkas arm64 saja: `flutter build apk --release --split-per-abi --target-platform android-arm64` (`app-arm64-v8a-release.apk`, sekitar 21 MB). Jangan memakai `--target-platform` tanpa `--split-per-abi`: hasilnya tetap `versionCode` 20 tetapi masih membawa berkas `.so` plugin untuk armeabi-v7a dan x86_64 tanpa `libflutter.so`, sehingga ponsel 32-bit bisa memasangnya lalu gagal dibuka.
 
 Penandatanganan rilis membaca `android/key.properties` bila berkas itu ada. Tanpa berkas itu, build rilis memakai **kunci debug** mesin yang membangun: cukup untuk uji internal, tetapi APK dari mesin lain tidak bisa dipasang sebagai pembaruan (tanda tangan beda; hapus app dulu) dan tidak bisa diunggah ke Play Store.
 
@@ -167,9 +172,11 @@ storeFile=<path ke bpedia-preview.jks, absolut atau relatif terhadap android/app
 Sumber ada di `assets/launcher/` (ikon dengan pita "DEMO", latar adaptif, logo splash terang/gelap); konfigurasi di `pubspec.yaml` (`flutter_launcher_icons`, `flutter_native_splash`). Setelah mengganti berkas sumber:
 
 ```bash
-dart run flutter_launcher_icons            # Android (adaptif), iOS, ikon web + manifest
+dart run flutter_launcher_icons            # Android (adaptif, inset 4%) dan iOS; ikon web tidak (web.generate: false)
 dart run flutter_native_splash:create      # splash Android (termasuk Android 12), iOS, web
 ```
+
+Ikon web dirawat manual: `web/favicon.png` = monogram "B" 32 px (`assets/launcher/favicon-32.png`, `<link … sizes="32x32">` di `web/index.html`); `web/icons/Icon-maskable-192.png` dan `-512.png` = `app_icon_preview_1024.png` diperkecil 88% di atas gradasi latar yang sama, sehingga isi berada dalam zona aman maskable 40% (radius ±38%). Bila generator web dinyalakan lagi, berkas ini tertimpa. Ikon adaptif Android memakai `adaptive_icon_foreground_inset: 4` karena `adaptive_fg_preview.png` sudah berada di dalam zona aman 66 dp; inset bawaan 16% membuat logo hanya ±2/3 ukuran.
 
 Generator splash menulis ulang bagian splash di `web/index.html`; pastikan listener `flutter-first-frame` yang memanggil `removeSplashFromWeb()` tetap ada, lalu cek build web di browser.
 
@@ -188,6 +195,8 @@ Git Bash mengubah argumen berbentuk `/x/` menjadi path Windows; `MSYS_NO_PATHCON
 
 `flutter build ipa` butuh macOS + Xcode dan akun Apple Developer owner. Bundle id sudah `id.bpedia.preview`; tim signing (`DEVELOPMENT_TEAM`) belum diisi.
 
+Bahasa bundle: `developmentRegion = id`, `knownRegions = (id, Base)`, `CFBundleLocalizations = [id]` di `Info.plist`, dan `ios/Runner/id.lproj/` (Main.strings, LaunchScreen.strings, sama seperti yang dibuat Xcode lewat Project > Info > Localizations). Dengan ini App Store mencantumkan bahasa Indonesia, bukan "English". Setelah membuka proyek di Xcode pertama kali, cek tab Info > Localizations menampilkan "Indonesian".
+
 ## 9. Simulator server PHP (opsional)
 
 `server/` berisi simulator API demo: router `index.php` (POST JSON, sesi `X-Demo-Session`, SQLite) dan aturan `checkin.php`, `spin.php`, `missions.php`. Ketiga berkas aturan adalah **salinan persis** dari repo modul (`../bpedia-*/server/`); setelah aturan modul berubah, salin ulang dan jalankan `php -l`. **App Flutter tidak memanggil simulator ini**; Mode Demo app sepenuhnya lokal. Simulator adalah contoh perilaku server untuk tim backend.
@@ -203,7 +212,7 @@ php -d extension_dir="<folder-php>/ext" -d extension=pdo_sqlite -S localhost:808
 curl -s -X POST http://localhost:8080/ -d '{"action":"open"}'
 ```
 
-Tanpa `pdo_sqlite`, semua permintaan dibalas 503 "Layanan demo sementara tidak tersedia". `open` membuat sesi baru (dibalas `session` + `state`). Aksi lain wajib mengirim header `X-Demo-Session: <session>`; aksi yang mengubah data juga wajib mengirim `revision` dan `day` terbaru (kalau beda: 409 + state terbaru).
+Tanpa `pdo_sqlite`, semua permintaan dibalas 503 "Layanan demo sementara tidak tersedia". `open` membuat sesi baru (dibalas `session` + `state`), maks. 20 per IP per jam (`DEMO_MAX_OPENS_PER_IP_HOUR`; IP disimpan sebagai hash, 24 jam), lalu 429. Bila jumlah sesi mencapai `DEMO_MAX_SESSIONS` (5000), sesi tertua yang belum pernah mengubah apa pun dibuang untuk memberi tempat, jadi satu klien tidak bisa mengunci pengguna lain. Aksi lain wajib mengirim header `X-Demo-Session: <session>`; aksi yang mengubah data juga wajib mengirim `revision` dan `day` terbaru (kalau beda: 409 + state terbaru).
 
 | Aksi | Body tambahan | Aturan |
 |---|---|---|
@@ -216,7 +225,7 @@ Tanpa `pdo_sqlite`, semua permintaan dibalas 503 "Layanan demo sementara tidak t
 | `promo` | `active` (bool) | promo Roda Sabtu aktif/jeda |
 | `refill` | – | stok produk roda kembali 1 |
 
-Setiap respons `state` berisi data tersimpan ditambah tampilan turunan: `day`, `date`, `weekday`, `checkin` (rentetan hidup, sudah klaim, slot 7 hari, progres 30 hari), `wheel` (kelayakan, peluang efektif basis 10000, stok, ongkir), dan `mission` (tahap + status, voucher + status). Data SQLite disimpan di `KELOPAK_DATA_DIR` bila diset; kalau tidak, di folder `kelopak-demo-data/` di samping folder repo hub (di hosting: di samping `public_html`, jadi tidak bisa diunduh lewat URL). Sesi kedaluwarsa setelah 7 hari tanpa aktivitas.
+Setiap respons `state` berisi data tersimpan ditambah tampilan turunan: `day`, `date`, `weekday`, `checkin` (rentetan hidup, sudah klaim, slot 7 hari, progres 30 hari), `wheel` (kelayakan, peluang efektif basis 10000, stok, ongkir), dan `mission` (tahap + status, voucher + status). Data SQLite disimpan di `KELOPAK_DATA_DIR` bila diset; kalau tidak, di folder `kelopak-demo-data/` di samping folder repo hub (di hosting: di samping `public_html`, jadi tidak bisa diunduh lewat URL). Sesi kedaluwarsa setelah 7 hari tanpa perubahan (`read` tidak memperpanjang umur sesi).
 
 Sumber aturan PHP ada di repo modul (`server/checkin.php`, `server/spin.php`, `server/missions.php`); salinan di hub identik. Cek sintaks dengan `php -l server/<berkas>.php`; `php server/checkin.php` (di hub atau repo check-in) menjalankan swa-uji aturan check-in.
 
@@ -257,7 +266,7 @@ Framework app resmi belum diverifikasi (APK produksi sengaja tidak dibongkar). J
          ref: v2.0.0
    ```
 
-   **Tag `v2.0.0` belum ada.** Tag dibuat saat rilis; sampai saat itu kunci `ref` ke hash commit tertentu, jangan ke `main`.
+   Tag `v2.0.0` tersedia di keempat repo. Kunci `ref` ke tag rilis (atau hash commit), jangan ke `main`.
 2. **Bila bukan Flutter:** pakai modul lewat Flutter add-to-app, atau implementasikan ulang dari `docs/SPEC-CONTRACT.md` dengan tes yang sama.
 
 Yang wajib ada di sisi server sebelum dipakai pengguna sungguhan (belum dibangun):
@@ -280,13 +289,14 @@ Yang wajib ada di sisi server sebelum dipakai pengguna sungguhan (belum dibangun
 Temuan riset yang harus diperbaiki owner di listing app **resmi** sebelum pembaruan berikutnya:
 
 - tautan kebijakan privasi di kedua toko mengarah ke `web.indobeauty.id`, kebijakan privasi app lain;
-- App Store: rating usia 18+ dan bahasa hanya "English" untuk app berbahasa Indonesia.
+- App Store: rating usia 18+ dan bahasa hanya "English" untuk app berbahasa Indonesia. Bpedia Demo sendiri sudah mendeklarasikan bahasa Indonesia (`id`) di bundle iOS (lihat §8 iOS); app resmi perlu langkah yang sama di Xcode.
 
 ## 13. Catatan terbuka
 
 - Server otoritatif, kuota promo nyata, dan pengiriman produk gratis belum ada (lihat §11 dan `PRD.md` §6, §13).
 - Entitas penyelenggara Roda Sabtu dan perbaikan listing app resmi menunggu owner (lihat §12).
 - Tim signing iOS dan hosting web preview belum ditentukan.
+- Rilis GitHub: v2.0.0 sudah di-push ke `main` dan diberi tag `v2.0.0` di keempat repo (25 Nov 2026). Yang tersisa dan butuh persetujuan owner: membersihkan riwayat publik hub (commit v1 `f1f5af3` memuat alamat email akun hosting di `PRD.md` dan berkas Bipy 2D `assets/bipy_hai.png`) di salinan `git clone --mirror`: `git filter-repo --invert-paths --path assets/bipy_hai.png --replace-text <berkas-ganti>` (berkas ganti memetakan alamat email lama di `PRD.md` v1 ke `[dihapus]`), `git push --force`, klon ulang repo lokal, lalu minta GitHub Support membersihkan tampilan cache dan commit lama `f1f5af3`.
 
 ## 14. Kepemilikan
 

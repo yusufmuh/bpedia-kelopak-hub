@@ -23,8 +23,10 @@ void main() {
     state.placeOrder(state.quote(useKelopak: true));
     state.markOrderReceived(state.orders.first.id);
     state.addToCart('somethinc-copy-paste-cushion-nina');
+    await state.flush();
 
     final saved = state.snapshot();
+    expect(saved.revision, greaterThan(0));
     await saved.save(store);
     final loaded = await AppSnapshot.load(store);
 

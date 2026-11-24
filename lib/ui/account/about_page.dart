@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
 import '../../core/assets.dart';
@@ -19,7 +20,10 @@ class AboutPage extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: const Text('Tentang aplikasi')),
+      appBar: AppBar(
+        toolbarHeight: pageToolbarHeight(context, 'Tentang aplikasi'),
+        title: const PageTitle('Tentang aplikasi'),
+      ),
       body: AccountListView(
         children: <Widget>[
           const SizedBox(height: BpSpace.s4),
@@ -70,7 +74,7 @@ class AboutPage extends StatelessWidget {
             onPressed: () => unawaited(
               _openLink(
                 context,
-                AppConfig.downloadApp,
+                AppConfig.downloadAppFor(defaultTargetPlatform),
                 'Tautan belum bisa dibuka. Cari "Bpedia" di Play Store atau '
                 'App Store, ya.',
               ),

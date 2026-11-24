@@ -174,6 +174,10 @@ class _VoucherPickerSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: BpSpace.s2),
                   TextButton(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      alignment: AlignmentDirectional.centerStart,
+                    ),
                     onPressed: () => _openMissions(context),
                     child: const Text('Lihat Misi Belanja'),
                   ),

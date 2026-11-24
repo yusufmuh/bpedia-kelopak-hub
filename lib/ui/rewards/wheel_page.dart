@@ -17,18 +17,23 @@ import '../../core/sound.dart' show Sfx;
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
 import '../../domain/rewards_engine.dart';
+import '../shop/shop_layout.dart' show BottomActionBar;
 import '../widgets/widgets.dart';
 import 'my_rewards_page.dart';
+import 'reward_copy.dart';
 import 'rewards_sheets.dart';
 import 'rewards_widgets.dart';
 
-/// Roda Sabtu: status, the wheel, odds + quota + shipping (always above the
-/// button) and one "Putar gratis" per Saturday.
+/// Roda Sabtu: status, the wheel, odds + quota + shipping, and one
+/// "Putar gratis" per Saturday. The button sits in a bar at the bottom of the
+/// screen, right under a one-line odds summary, so it is always in view and
+/// the odds always come before it; the full table stays in the page.
 ///
 /// The engine decides the prize before the wheel moves; the animation only
 /// shows it. While spinning, the page keeps showing the pre-spin odds and
-/// hides the saved result so nothing spoils the landing. Back navigation is
-/// always allowed: the result is already saved and shown on return.
+/// hides the saved result so nothing spoils the landing. After a spin, the
+/// wheel and the table both show the odds it was spun with. Back navigation
+/// is always allowed: the result is already saved and shown on return.
 class WheelPage extends StatefulWidget {
   const WheelPage({super.key});
 
@@ -43,7 +48,6 @@ class _WheelPageState extends State<WheelPage> {
   final Stopwatch _pegClock = Stopwatch()..start();
   int? _lastPegMs;
   SpinCompleted? _activeSpin;
-  int _stockBeforeSpin = 0;
   bool _spinning = false;
   bool _skip = false;
   int _spinToken = 0;
@@ -51,12 +55,10 @@ class _WheelPageState extends State<WheelPage> {
   void _spin() {
     final app = AppScope.read(context);
     if (_spinning || !app.canSpin) return;
-    final stockBefore = app.productStock;
     switch (app.spin()) {
       case final SpinCompleted outcome:
         setState(() {
           _activeSpin = outcome;
-          _stockBeforeSpin = stockBefore;
           _spinning = true;
           _skip = false;
           _spinToken++;
@@ -122,7 +124,7 @@ class _WheelPageState extends State<WheelPage> {
                 '${signedKelopakLabel(prize.kelopak)} sudah masuk ke saldo',
                 'Saldo: ${kelopakWithRupiah(spin.newBalance)}',
               ],
-        imageAsset: isProduct ? AppImages.giftBox3d : AppImages.bipyWink,
+        imageAsset: isProduct ? AppImages.giftBox3d : AppImages.kelopakToken3d,
         primaryLabel: isProduct ? 'Lihat Hadiahku' : 'Oke',
         onPrimary: isProduct ? _openProducts : null,
         secondaryLabel: isProduct ? 'Nanti saja' : null,
@@ -138,11 +140,6 @@ class _WheelPageState extends State<WheelPage> {
     );
   }
 
-  /// Wheel segments: the odds the shown spin was made with (saved with the
-  /// spin, so they survive a restart), otherwise the odds for the next spin.
-  List<SpinOdds> _wheelOdds(AppState app, SpinRecord? record) =>
-      record == null ? app.spinOdds : app.oddsForSpin(record);
-
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
@@ -151,13 +148,22 @@ class _WheelPageState extends State<WheelPage> {
     final shownResult = spin == null ? app.todaySpin : null;
     final prize = shownResult == null ? null : app.prizeFor(shownResult);
     final reduceMotion = BpMotion.reduced(context);
+    // The odds the shown spin was made with (saved with the spin, so they
+    // survive a restart), otherwise the odds for the next spin. The wheel,
+    // the table and the summary above the button always show the same list.
+    final odds = record == null ? app.spinOdds : app.oddsForSpin(record);
+    final stock = record == null ? app.productStock : app.stockForSpin(record);
     final Widget result = shownResult == null
         ? const SizedBox(height: BpSpace.s4)
         : Padding(
             padding: const EdgeInsets.symmetric(vertical: BpSpace.s4),
             child: _ResultCard(prize: prize, onOpenRewards: _openProducts),
           );
-    final Widget action = spin != null
+    // With reduced motion the wheel lands in the next frame: no skip button
+    // and no "spinning" status that would flash (and be announced) for one
+    // frame.
+    final animating = spin != null && !reduceMotion;
+    final Widget action = animating
         ? OutlinedButton.icon(
             key: const ValueKey<String>('skip'),
             onPressed: _skip ? null : _skipAnimation,
@@ -166,83 +172,94 @@ class _WheelPageState extends State<WheelPage> {
           )
         : _SpinButton(
             key: const ValueKey<String>('spin'),
-            eligibility: app.spinEligibility,
-            nextSaturday: app.nextSaturday,
+            available: app.canSpin,
+            reason: _spinReason(app),
             onPressed: _spin,
           );
+    const title = 'Roda Sabtu';
     return BgmScope(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Roda Sabtu'),
-          actions: demoAppBarActions,
+          toolbarHeight: pageToolbarHeight(context, title),
+          title: const PageTitle(title),
+          actions: demoAppBarActions(context),
         ),
         body: SafeArea(
           top: false,
-          child: ListView(
-            padding: rewardsPagePadding,
-            children: <Widget>[
-              RewardsContent(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _statusBanner(app, spinning: spin != null),
-                    const SizedBox(height: BpSpace.s4),
-                    SaturdayWheel(
-                      key: _wheelKey,
-                      odds: _wheelOdds(app, record),
-                      resultPrizeId: record?.prizeId,
-                      spinToken: _spinToken,
-                      landingSeed: record?.landingSeed ?? 0,
-                      skipAnimation: _skip,
-                      onPegPassed: _onPegPassed,
-                      onSettled: _onSettled,
-                      centerChild: ClipOval(
-                        child: Image.asset(
-                          AppImages.bipySenyum,
-                          fit: BoxFit.cover,
-                          excludeFromSemantics: true,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const SizedBox.shrink(),
+          child: FocusTraversalGroup(
+            child: ListView(
+              padding: rewardsPagePadding,
+              children: <Widget>[
+                RewardsContent(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const DemoBodyChip(),
+                      _statusBanner(app, spinning: animating),
+                      const SizedBox(height: BpSpace.s4),
+                      SaturdayWheel(
+                        key: _wheelKey,
+                        odds: odds,
+                        resultPrizeId: record?.prizeId,
+                        spinToken: _spinToken,
+                        landingSeed: record?.landingSeed ?? 0,
+                        skipAnimation: _skip,
+                        onPegPassed: _onPegPassed,
+                        onSettled: _onSettled,
+                        idleSemanticsValue: _idleSemanticsValue(app),
+                        centerChild: ClipOval(
+                          child: Image.asset(
+                            AppImages.bipySenyum,
+                            fit: BoxFit.cover,
+                            excludeFromSemantics: true,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const SizedBox.shrink(),
+                          ),
                         ),
                       ),
-                    ),
-                    if (reduceMotion)
-                      result
-                    else
-                      AnimatedSize(
-                        duration: BpMotion.medium,
-                        curve: BpMotion.standard,
-                        alignment: Alignment.topCenter,
-                        child: result,
+                      if (reduceMotion)
+                        result
+                      else
+                        AnimatedSize(
+                          duration: BpMotion.medium,
+                          curve: BpMotion.standard,
+                          alignment: Alignment.topCenter,
+                          child: result,
+                        ),
+                      if (shownResult != null) const _SpinTimeOddsCaption(),
+                      OddsTable(
+                        odds: odds,
+                        productStock: stock,
+                        shippingNote: app.spinConfig.shippingNote,
                       ),
-                    OddsTable(
-                      odds: spin?.odds ?? app.spinOdds,
-                      productStock: spin == null
-                          ? app.productStock
-                          : _stockBeforeSpin,
-                      shippingNote: app.spinConfig.shippingNote,
-                    ),
-                    const SizedBox(height: BpSpace.s6),
-                    if (reduceMotion)
-                      action
-                    else
-                      AnimatedSwitcher(
-                        duration: BpMotion.medium,
-                        child: action,
+                      const SizedBox(height: BpSpace.s3),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: spin != null
+                              ? null
+                              : () => showWheelTermsSheet(context),
+                          icon: const Icon(Icons.description_outlined),
+                          label: const Text('Syarat & ketentuan'),
+                        ),
                       ),
-                    const SizedBox(height: BpSpace.s3),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: spin != null
-                            ? null
-                            : () => showWheelTermsSheet(context),
-                        icon: const Icon(Icons.description_outlined),
-                        label: const Text('Syarat & ketentuan'),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: BottomActionBar(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _OddsSummary(odds: odds),
+              const SizedBox(height: BpSpace.s2),
+              if (reduceMotion)
+                action
+              else
+                AnimatedSwitcher(duration: BpMotion.medium, child: action),
             ],
           ),
         ),
@@ -260,7 +277,7 @@ class _WheelPageState extends State<WheelPage> {
         detail: Text('Hasil sudah ditentukan sistem. Semoga beruntung, Babes!'),
       );
     }
-    final nextSaturday = shortDateLabel(app.nextSaturday);
+    final opening = app.nextSpinOpening;
     switch (app.spinEligibility) {
       case SpinEligibility.available:
         return const StatusBanner(
@@ -275,14 +292,18 @@ class _WheelPageState extends State<WheelPage> {
           icon: Icons.check_circle_rounded,
           tone: StatusTone.success,
           liveRegion: true,
-          title: 'Sudah diputar Sabtu ini',
-          detail: Text('Putaran berikutnya Sabtu, $nextSaturday · 00.00 WIB.'),
+          title: spinUsedTitle(app),
+          detail: Text(
+            'Putaran berikutnya ${opening.opensAtLabel}, '
+            '${opening.remainingLabel}.',
+          ),
         );
       case SpinEligibility.notSaturday:
+        // Not a live region: on the day before, the countdown changes every
+        // minute and would be announced each time.
         return StatusBanner(
           icon: Icons.schedule_rounded,
-          liveRegion: true,
-          title: 'Buka Sabtu, $nextSaturday · 00.00 WIB',
+          title: 'Buka ${opening.opensAtLabel}',
           detail: const SpinCountdownText(),
         );
       case SpinEligibility.promoInactive:
@@ -295,6 +316,79 @@ class _WheelPageState extends State<WheelPage> {
         );
     }
   }
+
+  /// What the wheel tells screen readers while it shows no result.
+  static String _idleSemanticsValue(AppState app) =>
+      switch (app.spinEligibility) {
+        SpinEligibility.available => 'Siap diputar',
+        SpinEligibility.notSaturday => 'Buka ${app.nextSpinOpening.dayLabel}',
+        SpinEligibility.promoInactive => 'Promo sedang tidak aktif',
+        SpinEligibility.alreadySpun => spinUsedTitle(app),
+      };
+
+  /// Why "Putar gratis" is disabled and when it opens; null when it is not.
+  static String? _spinReason(AppState app) {
+    final opening = app.nextSpinOpening;
+    final used = spinDatedAhead(app)
+        ? '${spinUsedTitle(app)}.'
+        : 'Putaran Sabtu ini sudah dipakai.';
+    return switch (app.spinEligibility) {
+      SpinEligibility.available => null,
+      SpinEligibility.alreadySpun => '$used Sampai jumpa ${opening.dayLabel}.',
+      SpinEligibility.notSaturday => 'Tombol aktif ${opening.opensAtLabel}.',
+      SpinEligibility.promoInactive => 'Tombol aktif lagi saat promo berjalan.',
+    };
+  }
+}
+
+/// Says that the table under it shows the odds of this Saturday's spin
+/// (they can differ from today's stock after a product was won).
+class _SpinTimeOddsCaption extends StatelessWidget {
+  const _SpinTimeOddsCaption();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BpSpace.s2),
+      child: Semantics(
+        container: true,
+        child: Text(
+          'Peluang saat kamu memutar Sabtu ini',
+          style: theme.textTheme.bodyMedium!.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Peluang: Produk gratis 10% · 3 Kelopak 90%", the line right above the
+/// spin button (the full table is in the page).
+class _OddsSummary extends StatelessWidget {
+  const _OddsSummary({required this.odds});
+
+  final List<SpinOdds> odds;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final summary = odds
+        .map((entry) => '${entry.prize.label} ${entry.percentText}')
+        .join(' · ');
+    return Semantics(
+      container: true,
+      child: Text(
+        'Peluang: $summary',
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodyMedium!.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 }
 
 String _rejectionText(SpinEligibility eligibility) => switch (eligibility) {
@@ -305,32 +399,23 @@ String _rejectionText(SpinEligibility eligibility) => switch (eligibility) {
 };
 
 /// "Putar gratis", enabled only when a spin is available; otherwise disabled
-/// with the reason and the next step underneath.
+/// with [reason] (why, and when it opens) underneath.
 class _SpinButton extends StatelessWidget {
   const _SpinButton({
     super.key,
-    required this.eligibility,
-    required this.nextSaturday,
+    required this.available,
+    required this.reason,
     required this.onPressed,
   });
 
-  final SpinEligibility eligibility;
-  final int nextSaturday;
+  final bool available;
+  final String? reason;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final available = eligibility == SpinEligibility.available;
-    final date = shortDateLabel(nextSaturday);
-    final String? reason = switch (eligibility) {
-      SpinEligibility.available => null,
-      SpinEligibility.alreadySpun =>
-        'Putaran Sabtu ini sudah dipakai. Sampai jumpa Sabtu, $date.',
-      SpinEligibility.notSaturday =>
-        'Tombol aktif Sabtu, $date mulai 00.00 WIB.',
-      SpinEligibility.promoInactive => 'Tombol aktif lagi saat promo berjalan.',
-    };
+    final why = reason;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -339,13 +424,16 @@ class _SpinButton extends StatelessWidget {
           onPressed: available ? onPressed : null,
           child: const Text('Putar gratis'),
         ),
-        if (reason != null) ...<Widget>[
+        if (why != null) ...<Widget>[
           const SizedBox(height: BpSpace.s2),
-          Text(
-            reason,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          Semantics(
+            container: true,
+            child: Text(
+              why,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],

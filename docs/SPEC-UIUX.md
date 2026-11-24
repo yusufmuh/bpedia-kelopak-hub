@@ -12,8 +12,8 @@ Tujuan: belanja dan main hadiah terasa **nyaman, jelas, tidak membingungkan**. S
 6. **Aturan bisa dibuka di tempat**: tiap game punya tombol "Cara kerja" (bottom sheet) berisi aturan lengkap.
 7. **Tanpa pop-up paksa saat app dibuka.** Ajakan check-in cukup satu kartu di Beranda.
 8. **Umpan balik terasa**: sukses = animasi kelopak + suara + getar ringan + lembar hasil yang bisa ditutup. Gagal = suara lembut + pesan + tombol pemulihan.
-9. **Hormati preferensi**: kurangi gerakan (animasi dilewati), suara bisa dimatikan (Akun > Suara & getar), mode gelap mengikuti sistem.
-10. **Aksesibel**: target sentuh 48 dp, label Semantics, teks bisa diperbesar sampai 200% tanpa terpotong (tanpa tinggi tetap pada wadah teks).
+9. **Hormati preferensi**: kurangi gerakan (animasi dilewati; berlaku untuk "hapus animasi" Android, Reduce Motion iOS, dan `prefers-reduced-motion` browser lewat `ReduceMotionScope`), suara bisa dimatikan (Akun > Suara & getar), mode gelap mengikuti sistem.
+10. **Aksesibel**: target sentuh 48 dp, label Semantics (satu node per kartu atau blok teks; kartu yang bisa diketuk = satu tombol yang bisa difokus keyboard dan diberi garis fokus Berry 2 dp; tidak ada kontrol di dalam kontrol), urutan Tab: isi halaman lalu bar bawah/navigasi, teks bisa diperbesar sampai 200% tanpa terpotong (tanpa tinggi tetap pada wadah teks; label tidak diperkecil dengan FittedBox; judul AppBar boleh dua baris).
 11. **Jujur soal demo**: chip "DEMO" kecil di AppBar layar Hadiah & Checkout; semua data di perangkat.
 
 ### Keputusan dari audit UX app saat ini (screenshot owner, 24 Nov 2026)
@@ -67,26 +67,26 @@ flowchart LR
   - belum check-in: token 3D + "12 Kelopak (Rp1.200)" + tombol "Ambil 1 Kelopak" langsung dari Beranda.
   - sudah: "Sudah check-in · Hari ke-4 beruntun" + "Lihat hadiah".
   - Sabtu & belum putar: tambahan baris "Roda Sabtu siap diputar".
-- **Main bareng Bipy**: 3 tile (Check-in, Roda Sabtu, Misi Belanja), masing-masing dengan sublabel status: "Siap diambil" / "Buka Sabtu" / "Tahap 1 · 0 dari 1 pesanan".
-- Kategori: chip ikon brand (Skincare, Bodycare, Makeup, Haircare, Fragrance, Lashes, Tools).
+- **Main bareng Bipy**: 3 tile (Check-in, Roda Sabtu, Misi Belanja), masing-masing dengan sublabel status: "Siap diambil" / "Buka Sabtu, 28 Nov · 3 hari lagi" / "Tahap 1 · 0 dari 1 pesanan". Tautan "Semua hadiah" di baris yang sama dengan judul (turun ke bawah judul hanya pada teks besar).
+- Kategori: tombol pil ikon brand bergaya chip tidak aktif (Skincare, Bodycare, Makeup, Haircare, Fragrance, Lashes, Tools); membuka pencarian terfilter, jadi dibaca sebagai tombol, bukan checkbox.
 - Hot Item: carousel horizontal kartu produk dengan badge diskon.
 - Produk: grid 2 kolom (3 kolom bila lebar > 600 dp).
 
 ### 3.2 Detail produk
-Foto (label kecil "Foto ilustrasi" di Mode Demo), nama, harga (berry-700 w800) + harga coret, badge Original, deskripsi singkat, info misi aktif ("Belanja min. Rp75.000 untuk voucher Rp10.000"). Bar bawah: stepper jumlah + "Tambah ke keranjang" (utama).
+Foto (label kecil "Foto ilustrasi" di Mode Demo), nama, harga (berry-700 w800) + harga coret, badge brand radius 6 dengan ikon set brand ("Original" success di atas success-100, "Gratis ongkir (Demo)" Berry di atas blush), deskripsi singkat, info misi aktif ("Belanja min. Rp75.000 untuk voucher Rp10.000"). Bar bawah: stepper jumlah + "Tambah ke keranjang" (utama). Foto hanya terbang (Hero) dari grid Beranda; hasil cari dan "Produk lain" tidak.
 
 ### 3.3 Keranjang & Checkout
-- Keranjang: daftar item (stepper, hapus dengan konfirmasi undo snackbar), subtotal, progres misi ("Tambah Rp12.000 lagi untuk ikut Misi Belanja tahap 1"), tombol "Checkout".
-- Checkout: alamat demo, pengiriman "Gratis ongkir (Demo)", **Voucher** (pilih dari voucher aktif; yang belum memenuhi syarat tampil abu-abu dengan alasan "Belanja Rp8.000 lagi"), **Pakai Kelopak** (switch; maks. 50% subtotal, Demo), rincian harga (subtotal, voucher, Kelopak, total), tombol "Bayar sekarang (simulasi)".
-- Sukses: Bipy + "Pesanan dibuat" + nomor pesanan + "Lihat pesanan". Pesanan berstatus **Dikirim**.
+- Keranjang: daftar item (nama produk lengkap tanpa dipotong, stepper, hapus dengan konfirmasi undo snackbar), subtotal, progres misi ("Tambah Rp12.000 lagi untuk ikut Misi Belanja tahap 1"); bila sudah ada pesanan Dikirim yang memenuhi syarat tahap yang sama: "Sudah ada pesanan Dikirim yang memenuhi syarat tahap 1. Satu pesanan menyelesaikan satu tahap; pesanan ini hanya dihitung untuk tahap 1 bila diterima lebih dulu." Tombol "Checkout". Keranjang kosong: Bipy ngintip.
+- Checkout: alamat demo, pengiriman "Gratis ongkir (Demo)", **Voucher** (pilih dari voucher aktif; yang belum memenuhi syarat tampil abu-abu dengan alasan "Belanja Rp8.000 lagi"), **Pakai Kelopak** (switch; "Maks. 50% dari total setelah voucher (Demo)"), rincian harga (subtotal, voucher, Kelopak, total), tombol "Bayar sekarang (simulasi)".
+- Sukses: Bipy dalam tas (`bipy_tas_hati`) + "Pesanan dibuat" + nomor pesanan + "Lihat pesanan". Pesanan berstatus **Dikirim**. Janji voucher misi ("Setelah diterima, pesanan ini menyelesaikan Misi Belanja tahap 1 dan voucher Rp10.000 masuk ke Hadiahku.") hanya untuk satu-satunya pesanan yang menunggu tahap itu; bila ada lebih dari satu: "… voucher Rp10.000 terbit untuk pesanan memenuhi syarat yang lebih dulu diterima."
 
 ### 3.4 Transaksi
-Filter chip. Kartu pesanan: nomor, tanggal WIB, jumlah item, total, status (ikon + teks). Detail: rincian, timeline status, tombol **"Pesanan Diterima"** (utama, hanya saat Dikirim) → status Selesai → engine misi → lembar hasil ("Misi tahap 1 selesai! Voucher Rp10.000 masuk ke Hadiahku" atau alasan tidak memenuhi, mis. "Subtotal Rp60.000, belum mencapai min. Rp75.000").
+Filter chip. Kartu pesanan: nomor, tanggal WIB, jumlah item, total, status (ikon + teks). Detail: rincian, timeline status, tombol **"Pesanan Diterima"** (utama, hanya saat Dikirim; dialog konfirmasi menumpuk tombol dengan "Ya, sudah diterima" di atas bila tidak muat sebaris) → status Selesai → engine misi → lembar hasil ("Misi tahap 1 selesai! Voucher Rp10.000 masuk ke Hadiahku" atau alasan tidak memenuhi, mis. "Subtotal Rp60.000, belum mencapai min. Rp75.000").
 
 ### 3.5 Hadiah (hub)
 Header: latar kelopak (gambar header) memudar ke pearl, Bipy menyapa, saldo besar "12 Kelopak", "Setara Rp1.200", tautan "Riwayat". Kartu:
-1. **Check-in Harian**: jejak 7 hari mini + tombol/teks status.
-2. **Roda Sabtu**: status (Siap / Sudah diputar, hasil: … / Buka Sabtu 29 Nov, 00.00 WIB) + "Lihat peluang".
+1. **Check-in Harian**: jejak 7 hari mini + "Ambil 1 Kelopak" yang langsung mengklaim (sama dengan Beranda; lembar hasil tanpa "Lihat hadiah"), tautan "Lihat Check-in Harian"; setelah klaim "Lihat progres".
+2. **Roda Sabtu**: status (Siap / Sudah diputar, hasil: … / "Buka Sabtu, 28 Nov · 00.00 WIB" + "Putaran gratis berikutnya 3 hari lagi.") + "Lihat roda".
 3. **Misi Belanja**: tahap aktif + syarat + progres.
 4. **Hadiahku**: jumlah voucher aktif & produk gratis.
 Footer: "Cara kerja Kelopak".
@@ -95,7 +95,7 @@ Footer: "Cara kerja Kelopak".
 Hero Bipy + "Hari ke-3 beruntun". `CheckInWeekTrack` bertema **Kebun Bipy**: 7 slot tulip (kuncup = belum, mekar = sudah, slot hari ini berdenyut halus, slot 7 = kado bonus +3), tombol `CheckInClaimButton`. Setelah klaim: ledakan kelopak (≤ 900 ms), suara `claim` (atau `bonus` di hari ke-7/14/…, `win_product` di hari ke-30), getar ringan, lembar hasil: "+1 Kelopak" / "+1 Kelopak + bonus 3 Kelopak" / "+ 1 produk gratis", saldo baru. `CheckInMonthProgress` menuju produk gratis hari ke-30. Peringatan lembut bila rentetan putus: "Rentetanmu mulai lagi dari Hari 1. Kelopak yang sudah kamu kumpulkan tetap aman." Cara kerja: aturan lengkap + tabel contoh (hari 1 = 1, hari 7 = 10 total, hari 30 = 42 total + produk).
 
 ### 3.7 Roda Sabtu
-Status di atas roda (Siap diputar / Buka Sabtu, 29 Nov · 00.00 WIB, sisa x hari / Sudah diputar Sabtu ini). `SaturdayWheel` dengan segmen sebanding peluang. **`OddsTable` tampil di atas tombol** (peluang %, sisa kuota produk, ongkir). Tombol "Putar gratis" hanya aktif bila tersedia. Selama berputar: tombol berubah "Lewati animasi". Suara `spin_start`, `tick` per pasak (dibatasi ≤ 25/detik), lalu `claim`/`win_product`. Hasil tetap tertulis di kartu hasil setelah animasi (dan setelah app dibuka ulang). S&K: penyelenggara, gratis tanpa pembelian, periode Sabtu WIB, peluang, stok, ongkir, "Apple bukan sponsor dan tidak terlibat dalam promosi ini", "Google bukan sponsor…".
+Status di atas roda (Siap diputar / "Buka Sabtu, 28 Nov · 00.00 WIB" + "3 hari lagi" / Sudah diputar Sabtu ini). `SaturdayWheel` dengan segmen sebanding peluang (`idleSemanticsValue` sesuai kelayakan). `OddsTable` lengkap di halaman; **"Putar gratis" di bar bawah (`BottomActionBar`) tepat di bawah ringkasan peluang** "Peluang: Produk gratis 10% · 3 Kelopak 90%", jadi tombol selalu terlihat di 360 × 740 dan peluang selalu tampil sebelum tombol. Setelah diputar, roda dan tabel memakai peluang saat putaran itu, dengan keterangan "Peluang saat kamu memutar Sabtu ini". Tombol "Putar gratis" hanya aktif bila tersedia. Selama berputar: tombol berubah "Lewati animasi" (tidak muncul saat gerakan dikurangi; roda langsung berhenti). Suara `spin_start`, `tick` per pasak (dibatasi ≤ 25/detik), lalu `claim`/`win_product`. Hasil tetap tertulis di kartu hasil setelah animasi (dan setelah app dibuka ulang). S&K: penyelenggara, gratis tanpa pembelian, periode Sabtu WIB, peluang, stok, ongkir, "Apple bukan sponsor dan tidak terlibat dalam promosi ini", "Google bukan sponsor…".
 
 ### 3.8 Misi Belanja
 `MissionLadder` vertikal: Tahap 1 (Selesai/Aktif), Tahap 2 (Terkunci sampai voucher 1 terbit), lalu "Tahap berikutnya menunggu kampanye". Kartu tahap aktif: syarat, hadiah, aturan voucher, status pesanan terkait (pesanan Dikirim yang akan memenuhi syarat ditampilkan "Menunggu pesanan diterima"). CTA "Belanja sekarang". Bagian "Voucher saya" memakai `VoucherCard` (Aktif / Terpakai / Kedaluwarsa).
@@ -118,14 +118,16 @@ Profil "Pengguna Demo". Menu: Hadiahku, Riwayat Kelopak, Suara & getar (SFX on/o
 | Voucher terbit | kartu voucher muncul | `unlock` | lightImpact |
 | Gagal/tidak memenuhi | ikon info | `soft_error` | — |
 
-Semua animasi dimatikan bila `MediaQuery.disableAnimationsOf(context)` true. Musik latar `bgm_jingle` hanya di layar Hadiah/game, default mati.
+Semua animasi dimatikan bila `MediaQuery.disableAnimationsOf(context)` true; `ReduceMotionScope` di akar app menyalakannya juga untuk Reduce Motion iOS dan `prefers-reduced-motion` browser. Musik latar `bgm_jingle` hanya di layar Hadiah/game, default mati; "Pakai" pada voucher menutup layar hadiah dan membuka Keranjang di Beranda, jadi musik berhenti saat belanja.
 
 ## 5. Layout responsif
 Lebar ≤ 600: layout ponsel. > 600: konten maks. 560 dp di tengah untuk alur transaksi; grid produk 3–4 kolom. Web: sama, dengan `SafeArea` dan scroll mouse.
 
 ## 6. Copy kunci
 - "Ambil 1 Kelopak" · "Sudah check-in hari ini" · "Kembali besok mulai 00.00 WIB"
-- "Putar gratis" · "Lewati animasi" · "Roda buka Sabtu, {tgl} · 00.00 WIB"
+- "Putar gratis" · "Lewati animasi" · "Buka Sabtu, 28 Nov · 00.00 WIB"
+- Hitung mundur Roda Sabtu (satu helper `SpinOpening`, kata yang sama di Beranda, Hadiah, Roda Sabtu, dan Mode Demo): tanggal "Sabtu, 28 Nov · 00.00 WIB" + sisa hari kalender "3 hari lagi"; pada hari sebelumnya (Jumat) berganti ke waktu nyata "22 jam 40 menit lagi", "30 menit lagi", "kurang dari 1 menit lagi"
+- Jam perangkat mundur setelah klaim/putaran: "Check-in berikutnya 1 Des mulai 00.00 WIB (tanggal perangkat berubah)" · "Putaran Sabtu 28 Nov sudah tercatat"
 - "Selesaikan 1 pesanan min. Rp75.000" · "Dapat voucher Rp10.000 untuk belanja berikutnya min. Rp100.000"
 - "Pesanan Diterima" · "Voucher Rp10.000 sudah masuk ke Hadiahku"
 - "1 Kelopak = Rp100"
@@ -140,7 +142,7 @@ Bagian ini **mengalahkan** angka/gaya lain di spesifikasi bila bertentangan.
 
 **Tombol** (UI kit hal. 30): bentuk **pil** (StadiumBorder, radius 999), tinggi 52, padding horizontal 24, label Poppins 16 w600. Primer: isi pink-600 `#D81F57`, label putih (gelap: `#FF7AA0` + label `#2A0A18`). Sekunder: isi putih, garis & label Berry `#B3164B` (mis. "+ Keranjang"). Tersier: teks Berry ("Lihat detail"). Satu tombol primer per layar. Jangan pakai Petal `#F7729A` dengan teks putih.
 
-**Chip** (kategori/filter): pil; tidak aktif = putih + garis `#F3D3DD` + teks Plum; aktif = isi blush-100 `#FDE7EC` + garis & teks Berry.
+**Chip** (kategori/filter): pil; tidak aktif = putih + garis `#F3D3DD` + teks Plum; aktif = isi blush-100 `#FDE7EC` + garis (1,5 px) & teks Berry (Berry di atas putih ±6,7:1, cukup untuk beda keadaan 3:1).
 
 **Badge** radius 6, padding 8, label kecil tebal: diskon "-40%" putih di atas pink-600; "Original" success-700 `#1E7A55` di atas success-100 `#E9F7F0`; "Baru" honey-800 di atas honey-100; "Terlaris"/"Hot" night-950 di atas honey-400; "Gratis ongkir" Berry di atas blush.
 

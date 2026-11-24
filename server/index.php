@@ -19,6 +19,12 @@ declare(strict_types=1);
  *
  * Business rules live in checkin.php, spin.php and missions.php, copied
  * unchanged from the module repos.
+ *
+ * Abuse limits: `open` is limited per client IP and hour (the IP is stored
+ * only as a hash, for 24 hours). When DEMO_MAX_SESSIONS is reached, the
+ * oldest session that never changed anything is evicted to make room, so
+ * one client cannot lock everyone else out. Only actions that change data
+ * refresh a session's age; `read` does not.
  */
 
 require __DIR__ . '/checkin.php';
@@ -33,6 +39,7 @@ const DEMO_PRODUCT_STOCK = 1;
 const DEMO_MAX_OFFSET_DAYS = 365;
 const DEMO_SESSION_TTL_SECONDS = 7 * 86400;
 const DEMO_MAX_SESSIONS = 5000;
+const DEMO_MAX_OPENS_PER_IP_HOUR = 20;
 
 function reply(int $code, array $body): never
 {
@@ -143,12 +150,25 @@ try {
     $db = new PDO('sqlite:' . $dir . '/demo.sqlite', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     $db->exec('PRAGMA busy_timeout=5000');
     $db->exec('CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, state TEXT NOT NULL, updated INTEGER NOT NULL)');
+    $db->exec('CREATE TABLE IF NOT EXISTS opens (ip TEXT NOT NULL, hour INTEGER NOT NULL, n INTEGER NOT NULL, PRIMARY KEY(ip, hour))');
     $db->exec('BEGIN IMMEDIATE');
     if ($action === 'open') {
+        $hour = intdiv(time(), 3600);
+        $client = hash('sha256', (string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        $db->exec('DELETE FROM opens WHERE hour < ' . ($hour - 24));
+        $db->prepare('INSERT INTO opens(ip, hour, n) VALUES(?, ?, 1) ON CONFLICT(ip, hour) DO UPDATE SET n = n + 1')
+            ->execute([$client, $hour]);
+        $count = $db->prepare('SELECT n FROM opens WHERE ip = ? AND hour = ?');
+        $count->execute([$client, $hour]);
+        if ((int) $count->fetchColumn() > DEMO_MAX_OPENS_PER_IP_HOUR) {
+            $db->exec('ROLLBACK');
+            reply(429, ['error' => 'Terlalu banyak sesi demo baru. Coba lagi dalam satu jam.']);
+        }
         $db->exec('DELETE FROM accounts WHERE updated < ' . (time() - DEMO_SESSION_TTL_SECONDS));
         if ((int) $db->query('SELECT COUNT(*) FROM accounts')->fetchColumn() >= DEMO_MAX_SESSIONS) {
-            $db->exec('ROLLBACK');
-            reply(429, ['error' => 'Demo penuh, coba kembali nanti.']);
+            // Full: drop the oldest session that never changed anything
+            // (revision 0), else the oldest one.
+            $db->exec("DELETE FROM accounts WHERE id = (SELECT id FROM accounts ORDER BY json_extract(state, '$.revision') > 0, updated LIMIT 1)");
         }
         $key = bin2hex(random_bytes(16));
         $s = [
@@ -230,9 +250,10 @@ try {
         $s['revision']++;
         array_unshift($s['history'], ['id' => $tx, 'day' => $day, 'label' => $label]);
         $s['history'] = array_slice($s['history'], 0, 24);
+        // Only a change keeps the session alive; reading does not.
+        $db->prepare('UPDATE accounts SET state=?,updated=? WHERE id=?')->execute([json_encode($s), time(), $id]);
     }
     $view = snapshot($s);
-    $db->prepare('UPDATE accounts SET state=?,updated=? WHERE id=?')->execute([json_encode($s), time(), $id]);
     $db->exec('COMMIT');
     reply(200, ['state' => $view]);
 } catch (DomainException $e) {

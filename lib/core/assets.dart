@@ -9,7 +9,7 @@ abstract final class AppImages {
   /// Bipy waving hello.
   static const String bipyMenyapa = 'assets/images/bipy_menyapa.webp';
 
-  /// Bipy peeking (empty states).
+  /// Bipy peeking (empty states, including an empty cart).
   static const String bipyNgintip = 'assets/images/bipy_ngintip.webp';
 
   /// Bipy smiling.
@@ -18,7 +18,7 @@ abstract final class AppImages {
   /// Bipy with her bag, front view.
   static const String bipyTasDepan = 'assets/images/bipy_tas_depan.webp';
 
-  /// Bipy hugging a heart bag (order success).
+  /// Bipy hugging a heart bag (orders and parcels: order success, missions).
   static const String bipyTasHati = 'assets/images/bipy_tas_hati.webp';
 
   /// Bipy winking.

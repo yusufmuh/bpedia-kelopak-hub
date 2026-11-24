@@ -50,9 +50,15 @@ class _SearchPageState extends State<SearchPage> {
     final autofocus =
         widget.category == null && (widget.initialQuery ?? '').isEmpty;
 
+    const title = 'Cari produk';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cari produk'),
+        toolbarHeight: pageToolbarHeight(
+          context,
+          title,
+          actionsWidth: BpSize.touchTarget + BpSpace.s1,
+        ),
+        title: const PageTitle(title),
         actions: const <Widget>[
           CartButton(),
           SizedBox(width: BpSpace.s1),
@@ -143,7 +149,6 @@ class _SearchPageState extends State<SearchPage> {
                   padding: EdgeInsets.fromLTRB(pad, 0, pad, BpSpace.s8),
                   sliver: SliverProductGrid(
                     products: results,
-                    heroPackshots: true,
                     onTap: (product) => openProduct(context, product.id),
                     onAddToCart: (product) =>
                         addToCartWithFeedback(context, product),

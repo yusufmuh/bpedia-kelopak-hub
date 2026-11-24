@@ -18,6 +18,7 @@ import '../../domain/app_state.dart';
 import '../../domain/rewards_engine.dart';
 import '../widgets/widgets.dart';
 import 'my_rewards_page.dart';
+import 'reward_copy.dart';
 import 'rewards_sheets.dart';
 import 'rewards_widgets.dart';
 
@@ -32,11 +33,13 @@ class CheckInPage extends StatelessWidget {
     final app = AppScope.of(context);
     final claimed = app.claimedToday;
     final live = app.liveStreak;
+    const title = 'Check-in Harian';
     return BgmScope(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Check-in Harian'),
-          actions: demoAppBarActions,
+          toolbarHeight: pageToolbarHeight(context, title),
+          title: const PageTitle(title),
+          actions: demoAppBarActions(context),
         ),
         body: SafeArea(
           top: false,
@@ -47,10 +50,14 @@ class CheckInPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
+                    const DemoBodyChip(),
                     _CheckInHero(
                       claimed: claimed,
                       liveStreak: live,
                       balance: app.balance,
+                      claimedLine: checkInDatedAhead(app)
+                          ? '${checkInReturnLine(app)}.'
+                          : 'Kelopak hari ini sudah masuk. Sampai besok, Babes!',
                     ),
                     if (app.streakBroken) ...<Widget>[
                       const SizedBox(height: BpSpace.s4),
@@ -66,8 +73,11 @@ class CheckInPage extends StatelessWidget {
                     const SizedBox(height: BpSpace.s6),
                     _WeekCard(
                       claimed: claimed,
-                      liveStreak: live,
                       filled: app.checkInWeekFilled,
+                      claimedHint: checkInReturnLine(
+                        app,
+                        after: '· Hari ke-${live + 1}',
+                      ),
                     ),
                     const SizedBox(height: BpSpace.s4),
                     _MonthCard(day: app.checkInMonthDay, claimed: claimed),
@@ -95,11 +105,15 @@ class _CheckInHero extends StatelessWidget {
     required this.claimed,
     required this.liveStreak,
     required this.balance,
+    required this.claimedLine,
   });
 
   final bool claimed;
   final int liveStreak;
   final int balance;
+
+  /// Lead line once claimed (when the next check-in opens).
+  final String claimedLine;
 
   @override
   Widget build(BuildContext context) {
@@ -110,13 +124,16 @@ class _CheckInHero extends StatelessWidget {
         : 'Mulai rentetan baru hari ini';
     final String subtitle;
     if (claimed) {
-      subtitle = 'Kelopak hari ini sudah masuk. Sampai besok, Babes!';
+      subtitle = claimedLine;
     } else if (liveStreak > 0) {
       subtitle = 'Ambil 1 Kelopak hari ini untuk Hari ke-${liveStreak + 1}.';
     } else {
       subtitle = 'Ambil 1 Kelopak hari ini, tulip pertamamu langsung mekar.';
     }
+    // Each block is its own semantics node, so screen readers meet the
+    // heading first and no loose text is merged into the page item.
     final heading = Semantics(
+      container: true,
       header: true,
       child: Text(
         title,
@@ -125,24 +142,29 @@ class _CheckInHero extends StatelessWidget {
         ),
       ),
     );
-    final lead = Text(
-      subtitle,
-      style: theme.textTheme.bodyLarge!.copyWith(
-        color: scheme.onSurfaceVariant,
+    final lead = Semantics(
+      container: true,
+      child: Text(
+        subtitle,
+        style: theme.textTheme.bodyLarge!.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
     );
-    final saldo = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          'Saldo kamu',
-          style: theme.textTheme.labelMedium!.copyWith(
-            color: scheme.onSurfaceVariant,
+    final saldo = MergeSemantics(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Saldo kamu',
+            style: theme.textTheme.labelMedium!.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        KelopakAmount(balance, size: KelopakAmountSize.small),
-      ],
+          const SizedBox(height: 2),
+          KelopakAmount(balance, size: KelopakAmountSize.small),
+        ],
+      ),
     );
     if (isLargeText(context)) {
       return Column(
@@ -204,13 +226,15 @@ class _HeroBipy extends StatelessWidget {
 class _WeekCard extends StatelessWidget {
   const _WeekCard({
     required this.claimed,
-    required this.liveStreak,
     required this.filled,
+    required this.claimedHint,
   });
 
   final bool claimed;
-  final int liveStreak;
   final int filled;
+
+  /// Line under the claimed button: when the next check-in opens.
+  final String claimedHint;
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +244,7 @@ class _WeekCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Semantics(
+            container: true,
             header: true,
             child: Text(
               'Rentetan ${CheckInRules.bonusEvery} hari',
@@ -227,11 +252,15 @@ class _WeekCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: BpSpace.s1),
-          Text(
-            'Tiap check-in, satu tulip mekar. Hari ke-${CheckInRules.bonusEvery} '
-            'ada bonus +${kelopakLabel(CheckInRules.bonusKelopak)}.',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          Semantics(
+            container: true,
+            child: Text(
+              'Tiap check-in, satu tulip mekar. Hari '
+              'ke-${CheckInRules.bonusEvery} ada bonus '
+              '+${kelopakLabel(CheckInRules.bonusKelopak)}.',
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(height: BpSpace.s4),
@@ -248,8 +277,7 @@ class _WeekCard extends StatelessWidget {
                   ? CheckInButtonState.claimed
                   : CheckInButtonState.ready,
               onPressed: () => _claimToday(context, buttonContext),
-              claimedHint:
-                  'Kembali besok mulai 00.00 WIB · Hari ke-${liveStreak + 1}',
+              claimedHint: claimedHint,
             ),
           ),
         ],
@@ -276,13 +304,16 @@ class _MonthCard extends StatelessWidget {
         children: <Widget>[
           CheckInMonthProgress(day: day, rewardImage: const GiftArt()),
           const SizedBox(height: BpSpace.s2),
-          Text(
-            reached
-                ? 'Produk gratis hari ke-$goal sudah masuk ke Hadiahku.'
-                : 'Check-in $remaining hari lagi tanpa bolong untuk 1 produk '
-                      'gratis.',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          Semantics(
+            container: true,
+            child: Text(
+              reached
+                  ? 'Produk gratis hari ke-$goal sudah masuk ke Hadiahku.'
+                  : 'Check-in $remaining hari lagi tanpa bolong untuk 1 produk '
+                        'gratis.',
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -332,7 +363,7 @@ void _celebrate(
       context,
       title: _resultTitle(award),
       lines: _resultLines(award, claim.newBalance),
-      imageAsset: product ? AppImages.giftBox3d : AppImages.bipyWink,
+      imageAsset: product ? AppImages.giftBox3d : AppImages.kelopakToken3d,
       primaryLabel: product ? 'Lihat Hadiahku' : 'Oke',
       onPrimary: product
           ? () {

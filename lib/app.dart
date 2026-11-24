@@ -5,10 +5,12 @@ import 'core/config.dart';
 import 'core/theme.dart';
 import 'domain/app_state.dart';
 import 'ui/shell.dart';
+import 'ui/widgets/motion_preference.dart';
 
 /// Root widget: themes, theme mode from settings, Indonesian framework
-/// strings, text scale capped at 200% and the [ShellScope] that lets any
-/// route switch bottom-navigation tabs.
+/// strings, text scale capped at 200%, every "reduce motion" preference
+/// folded into `MediaQuery.disableAnimations` ([ReduceMotionScope]) and the
+/// [ShellScope] that lets any route switch bottom-navigation tabs.
 class BpediaApp extends StatefulWidget {
   const BpediaApp({super.key});
 
@@ -53,12 +55,14 @@ class _BpediaAppState extends State<BpediaApp> {
       darkTheme: _darkTheme,
       themeMode: themeMode,
       home: const AppShell(),
-      builder: (context, child) => ShellScope(
-        controller: _shell,
-        navigatorKey: _navigatorKey,
-        child: MediaQuery.withClampedTextScaling(
-          maxScaleFactor: 2.0,
-          child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => ReduceMotionScope(
+        child: ShellScope(
+          controller: _shell,
+          navigatorKey: _navigatorKey,
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 2.0,
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );

@@ -1,15 +1,11 @@
-import 'dart:async';
-
-import 'package:daily_checkin/daily_checkin.dart'
-    show CheckInAward, CheckInRules;
+import 'package:daily_checkin/daily_checkin.dart' show CheckInRules;
 import 'package:flutter/material.dart';
 
-import '../../core/assets.dart';
-import '../../core/feedback.dart';
 import '../../core/format.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
-import '../../domain/rewards_engine.dart';
+import '../rewards/check_in_claim.dart';
+import '../rewards/reward_copy.dart';
 import '../shell.dart';
 import '../shop/shop_layout.dart';
 import '../shop/shop_navigation.dart';
@@ -50,6 +46,10 @@ class KelopakTodayCard extends StatelessWidget {
                 ? _ClaimedToday(
                     key: const ValueKey<String>('claimed'),
                     streak: app.liveStreak,
+                    returnLine: checkInReturnLine(
+                      app,
+                      after: 'untuk Hari ke-${app.liveStreak + 1}',
+                    ),
                   )
                 : _ReadyToClaim(
                     key: const ValueKey<String>('ready'),
@@ -127,7 +127,7 @@ class _ReadyToClaim extends StatelessWidget {
               width: double.infinity,
               child: Builder(
                 builder: (buttonContext) => FilledButton(
-                  onPressed: () => _claimFromHome(buttonContext),
+                  onPressed: () => claimTodayWithCelebration(buttonContext),
                   child: const Text(
                     'Ambil 1 Kelopak',
                     textAlign: TextAlign.center,
@@ -143,9 +143,16 @@ class _ReadyToClaim extends StatelessWidget {
 }
 
 class _ClaimedToday extends StatelessWidget {
-  const _ClaimedToday({super.key, required this.streak});
+  const _ClaimedToday({
+    super.key,
+    required this.streak,
+    required this.returnLine,
+  });
 
   final int streak;
+
+  /// When the next check-in opens ("Kembali besok mulai 00.00 WIB …").
+  final String returnLine;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +170,7 @@ class _ClaimedToday extends StatelessWidget {
         ),
         const SizedBox(height: BpSpace.s1),
         Text(
-          'Kembali besok mulai 00.00 WIB untuk Hari ke-${streak + 1}',
+          returnLine,
           style: theme.textTheme.bodyMedium!.copyWith(
             color: scheme.onSurfaceVariant,
           ),
@@ -209,74 +216,4 @@ class _SpinReadyRow extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Claims today's check-in from the button behind [buttonContext] with the
-/// full celebration: sound and vibration for the reward tier, the result
-/// sheet, and petals bursting from the button.
-void _claimFromHome(BuildContext buttonContext) {
-  final app = AppScope.read(buttonContext);
-  final shell = ShellScope.of(buttonContext);
-  final origin = globalCenterOf(buttonContext);
-  final outcome = app.claimCheckIn();
-  switch (outcome) {
-    case CheckInClaimed(:final award, :final newBalance):
-      final productWon = award.productEntitled;
-      final bonus = award.bonusKelopak > 0;
-      app.feedback(
-        productWon
-            ? FeedbackEvent.productWon
-            : bonus
-            ? FeedbackEvent.bonus
-            : FeedbackEvent.checkIn,
-      );
-      unawaited(
-        showRewardResultSheet(
-          buttonContext,
-          title: _claimTitle(award),
-          lines: _claimLines(award, newBalance),
-          imageAsset: productWon
-              ? AppImages.giftBox3d
-              : AppImages.kelopakToken3d,
-          primaryLabel: 'Oke',
-          secondaryLabel: 'Lihat hadiah',
-          onSecondary: () => shell.switchTab(ShellTab.rewards),
-        ),
-      );
-      // Started after the sheet is pushed so the petals draw above it.
-      PetalBurst.play(
-        buttonContext,
-        globalOrigin: origin,
-        count: productWon ? 48 : (bonus ? 36 : 26),
-      );
-    case CheckInAlreadyClaimed():
-      app.feedback(FeedbackEvent.softError);
-      showShopSnackBar(
-        buttonContext,
-        'Kamu sudah check-in hari ini. Kembali besok mulai 00.00 WIB.',
-      );
-  }
-}
-
-String _claimTitle(CheckInAward award) {
-  if (award.productEntitled) return 'Yay, Babes! Produk gratis untukmu';
-  if (award.bonusKelopak > 0) {
-    return 'Yay, Babes! Bonus ${award.streak} hari beruntun';
-  }
-  return 'Yay, Babes! +${kelopakLabel(award.dailyKelopak)} masuk';
-}
-
-List<String> _claimLines(CheckInAward award, int newBalance) {
-  final parts = <String>[
-    '+${kelopakLabel(award.dailyKelopak)}',
-    if (award.bonusKelopak > 0) 'bonus ${kelopakLabel(award.bonusKelopak)}',
-    if (award.productEntitled) '1 produk gratis',
-  ];
-  return <String>[
-    if (parts.length > 1) parts.join(' + '),
-    'Hari ke-${award.streak} beruntun',
-    if (award.productEntitled)
-      'Produk gratis tercatat di Hadiahku: ${EntitlementStatus.pending.label}',
-    'Saldo sekarang ${kelopakWithRupiah(newBalance)}',
-  ];
 }

@@ -112,16 +112,20 @@ class SettingsNavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final detail = subtitle;
-    return ListTile(
-      shape: const RoundedRectangleBorder(),
-      leading: icon,
-      title: Text(title),
-      subtitle: detail == null ? null : Text(detail),
-      trailing: Icon(
-        Icons.chevron_right_rounded,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+    // Its own node: nothing from the neighbouring rows of the group is read
+    // as part of this link.
+    return MergeSemantics(
+      child: ListTile(
+        shape: const RoundedRectangleBorder(),
+        leading: icon,
+        title: Text(title),
+        subtitle: detail == null ? null : Text(detail),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        onTap: onTap,
       ),
-      onTap: onTap,
     );
   }
 }

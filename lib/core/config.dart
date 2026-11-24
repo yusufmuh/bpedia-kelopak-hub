@@ -1,6 +1,7 @@
 /// App identity and official Bpedia links.
 library;
 
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:url_launcher/url_launcher.dart';
 
 /// Static app configuration.
@@ -15,9 +16,26 @@ abstract final class AppConfig {
   /// Official Bpedia website.
   static const String bpediaWeb = 'https://bpedia.id';
 
-  /// Official download link for the Bpedia app (App Store and Google Play).
-  static const String downloadApp =
-      'https://beautypediaofc.onelink.me/hebt/9fer7r7y';
+  /// Official Google Play listing of the Bpedia app.
+  static const String playStoreListing =
+      'https://play.google.com/store/apps/details?id=com.wot.beautypedia';
+
+  /// Official App Store listing of the Bpedia app.
+  static const String appStoreListing =
+      'https://apps.apple.com/app/id6751265630';
+
+  /// Where "Unduh app Bpedia resmi" leads on [platform]: the plain store
+  /// listing (App Store on iPhone, iPad and Mac, Google Play elsewhere). No
+  /// attribution or campaign link: the demo does not track its users. On the
+  /// web, Flutter reports the browser's platform, so iPhone browsers also
+  /// get the App Store.
+  static String downloadAppFor(TargetPlatform platform) => switch (platform) {
+    TargetPlatform.iOS || TargetPlatform.macOS => appStoreListing,
+    TargetPlatform.android ||
+    TargetPlatform.fuchsia ||
+    TargetPlatform.linux ||
+    TargetPlatform.windows => playStoreListing,
+  };
 }
 
 /// Opens [url] outside the app (browser or store). Returns false when it

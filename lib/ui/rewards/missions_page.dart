@@ -6,7 +6,7 @@ import '../../core/format.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
 import '../shell.dart';
-import '../shop/cart_page.dart';
+import '../shop/shop_navigation.dart' show openCartFromRewards;
 import '../widgets/widgets.dart';
 import 'rewards_sheets.dart';
 import 'rewards_widgets.dart';
@@ -21,11 +21,13 @@ class MissionsPage extends StatelessWidget {
     final app = AppScope.of(context);
     final vouchers = app.vouchers;
     final stage = app.activeMissionStage;
+    const title = 'Misi Belanja';
     return BgmScope(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Misi Belanja'),
-          actions: demoAppBarActions,
+          toolbarHeight: pageToolbarHeight(context, title),
+          title: const PageTitle(title),
+          actions: demoAppBarActions(context),
         ),
         body: SafeArea(
           top: false,
@@ -36,6 +38,7 @@ class MissionsPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
+                    const DemoBodyChip(),
                     const _MissionIntro(),
                     const SizedBox(height: BpSpace.s6),
                     const SectionHeader('Tahapan misi'),
@@ -71,8 +74,7 @@ class MissionsPage extends StatelessWidget {
                           child: VoucherCard(
                             voucher: voucher,
                             today: app.today,
-                            onUse: () =>
-                                openRewardsPage(context, const CartPage()),
+                            onUse: () => openCartFromRewards(context),
                           ),
                         ),
                     const SizedBox(height: BpSpace.s3),
@@ -166,13 +168,16 @@ class _IntroBipy extends StatelessWidget {
   }
 }
 
-/// Shipped orders that will complete the active stage once received.
+/// Shipped orders that qualify for the active stage once received. Only the
+/// first one received completes it, so with several the note says so.
 String? _pendingNote(AppState app) {
   final waiting = app.ordersAwaitingMission;
-  if (waiting.isEmpty) return null;
+  final stage = app.activeMissionStage;
+  if (waiting.isEmpty || stage == null) return null;
   final summary = waiting.length == 1
       ? '1 pesanan ${rupiah(waiting.first.subtotal)} menunggu diterima.'
-      : '${waiting.length} pesanan yang memenuhi syarat menunggu diterima.';
+      : '${waiting.length} pesanan memenuhi syarat menunggu diterima. Yang '
+            'lebih dulu diterima menyelesaikan Tahap ${stage.number}.';
   return '$summary Tekan Pesanan Diterima di Transaksi setelah paket sampai.';
 }
 

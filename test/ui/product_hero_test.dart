@@ -4,6 +4,7 @@ import 'package:kelopak_hub/app.dart';
 import 'package:kelopak_hub/data/catalog.dart';
 import 'package:kelopak_hub/domain/app_state.dart';
 import 'package:kelopak_hub/ui/shop/product_page.dart';
+import 'package:kelopak_hub/ui/shop/search_page.dart';
 import 'package:kelopak_hub/ui/widgets/widgets.dart';
 
 import '../support/navigation.dart';
@@ -11,7 +12,7 @@ import '../support/test_app_state.dart';
 
 void main() {
   testWidgets(
-    'grid packshots fly into the product page; the Hot Item carousel has none',
+    'grid packshots fly into the product page; carousels and search have none',
     (tester) async {
       tester.view
         ..physicalSize = const Size(1080, 2220)
@@ -55,9 +56,31 @@ void main() {
         findsOneWidget,
       );
 
+      // "Produk lain" shares products with Beranda: no hero there, so going
+      // back only flies the product that was opened.
+      expect(
+        find.descendant(
+          of: find.byType(ProductCarousel),
+          matching: find.byType(Hero),
+        ),
+        findsNothing,
+      );
+
       await tester.tapBack();
       await tester.pumpAndSettle();
       expect(find.byType(ProductPage), findsNothing);
+
+      // Search shows the same products as Beranda: its cards carry no hero,
+      // so opening search never flies photos across the screen.
+      await tester.pumpWidget(
+        AppScope(
+          notifier: state,
+          child: const MaterialApp(home: SearchPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductCard), findsWidgets);
+      expect(find.byType(Hero), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       state.dispose();

@@ -53,17 +53,39 @@ class ScriptedRandom implements Random {
 }
 
 /// Builds an [AppState] over an in-memory store with a fixed clock, silent
-/// sound, a seeded random and no midnight timer.
+/// sound (or [sound]), a seeded random and, unless [watchDayChange], no
+/// midnight timer.
 Future<AppState> createTestAppState({
   KeyValueStore? store,
   DateTime Function()? now,
   Random? random,
+  SoundService? sound,
+  bool watchDayChange = false,
 }) {
   return AppState.load(
     store: store ?? MemoryKeyValueStore(),
     now: now ?? () => defaultTestNow,
-    sound: SoundService.silent(),
+    sound: sound ?? SoundService.silent(),
     random: random ?? Random(7),
-    watchDayChange: false,
+    watchDayChange: watchDayChange,
+    watchOtherTabs: false,
   );
+}
+
+/// Silent sound that counts background-music holders like the real service.
+class CountingSoundService extends SoundService {
+  CountingSoundService() : super.silent();
+
+  int _holders = 0;
+
+  /// Screens currently asking for background music.
+  int get holders => _holders;
+
+  @override
+  void startMusic() => _holders++;
+
+  @override
+  void stopMusic() {
+    if (_holders > 0) _holders--;
+  }
 }

@@ -46,6 +46,21 @@ void openSearch(
 void openCart(BuildContext context) =>
     _push(context, pageRoute(const CartPage()));
 
+/// Opens the cart from a reward screen (a voucher's "Pakai"): closes the
+/// Hadiah pages and selects Beranda first, so the background music of the
+/// reward screens stops before shopping starts.
+void openCartFromRewards(BuildContext context) {
+  final shell = ShellScope.maybeOf(context);
+  if (shell == null) {
+    openCart(context);
+    return;
+  }
+  shell.switchTab(ShellTab.home);
+  unawaited(
+    shell.navigatorKey.currentState?.push<void>(pageRoute(const CartPage())),
+  );
+}
+
 /// Opens checkout for the current cart.
 void openCheckout(BuildContext context) =>
     _push(context, pageRoute(const CheckoutPage()));

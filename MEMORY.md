@@ -42,11 +42,21 @@ Dasar: audit UX 16 screenshot owner, brand guideline resmi 38 halaman, dan audit
 | 17 | Widget bawaan Flutter memakai bahasa Indonesia (locale `id`). | Tidak ada teks Inggris yang tersisa ("Back", "Dismiss"). |
 | 18 | Tab Transaksi memakai ikon struk bergaya set brand (grid 24, stroke 1,8), bukan ikon tas. | Ikon tas sudah dipakai tombol keranjang; satu ikon untuk dua fitur membingungkan. |
 
+## 2b. Keputusan hasil review (25 Nov 2026)
+
+| # | Keputusan | Alasan |
+|---|---|---|
+| 19 | Waktu buka Roda Sabtu ditulis sama di semua layar lewat satu helper (`SpinOpening`): "Sabtu, 28 Nov · 00.00 WIB" + "3 hari lagi" (hari kalender), pada hari Jumat "22 jam 40 menit lagi". | Permintaan owner: Beranda menulis "3 hari lagi" sementara Hadiah menulis "2 hari 22 jam lagi" pada saat yang sama. |
+| 20 | Batas Kelopak di checkout tertulis "Maks. 50% dari total setelah voucher (Demo)" di checkout, Cara kerja, dan S&K (`kelopakCapRule`), sama dengan engine. | Tiga teks sebelumnya menyebut dua dasar berbeda. |
+| 21 | Janji voucher Misi Belanja hanya untuk pesanan yang pasti menyelesaikan tahap (satu-satunya yang menunggu); bila ada beberapa, teks menyebut yang lebih dulu diterima. | Satu pesanan menyelesaikan satu tahap; pesanan kedua tidak mendapat voucher tahap yang sama. |
+| 22 | "Unduh app Bpedia resmi" membuka halaman App Store/Google Play langsung, bukan OneLink AppsFlyer (pid=Blog, c=hot_sale). | Demo tidak melacak penggunanya. OneLink khusus demo bisa dipakai bila marketing membuatnya. |
+| 23 | Dokumen simpan punya `revision`; tab browser yang tertinggal mengadopsi data terbaru, tidak menimpanya. | Tab kedua sempat menghapus pesanan dan check-in tab pertama. |
+
 ## 3. Nilai Demo (menunggu keputusan bisnis)
 
 | Nilai | Demo |
 |---|---|
-| Pakai Kelopak di checkout | Maks. 50% dari total setelah voucher |
+| Pakai Kelopak di checkout | Maks. 50% dari total setelah voucher, dibatasi saldo |
 | Roda Sabtu | Produk gratis 10% (stok 1) / 3 Kelopak 90%; stok habis: produk 0%, Kelopak 100%; "Gratis ongkir (Demo)" |
 | Misi tahap 2 | Pesanan selesai min. Rp100.000 → voucher Rp5.000 (min. belanja Rp100.000); sesudahnya "Tahap berikutnya menunggu kampanye" |
 | Masa berlaku voucher misi | 30 hari setelah terbit |
@@ -55,7 +65,7 @@ Dasar: audit UX 16 screenshot owner, brand guideline resmi 38 halaman, dan audit
 ## 4. Fakta yang sudah dicek (24 Nov 2026)
 
 - App resmi: "Bpedia", Android `com.wot.beautypedia`, versi 2.0.24 di kedua toko (sumber publik).
-- Tautan resmi yang dipakai app: `https://bpedia.id` dan unduh app `https://beautypediaofc.onelink.me/hebt/9fer7r7y` (root `beautypediaofc.onelink.me/` membalas 403).
+- Tautan resmi yang dipakai app: `https://bpedia.id`, App Store `https://apps.apple.com/app/id6751265630`, dan Google Play `https://play.google.com/store/apps/details?id=com.wot.beautypedia` (keduanya dicek 25 Nov 2026: halaman app "Bpedia"). OneLink resmi `beautypediaofc.onelink.me/hebt/9fer7r7y` adalah redirect atribusi AppsFlyer (pid=Blog, c=hot_sale, deep link Hot Sale), jadi tidak dipakai demo.
 - `kelopak.gamysuf.fun` **belum aktif** (tidak ada di DNS); hanya kandidat hosting web preview.
 - Belum ada tag rilis di keempat repo.
 
@@ -76,3 +86,4 @@ Dasar: audit UX 16 screenshot owner, brand guideline resmi 38 halaman, dan audit
 | 24 Nov 2026 | Riset dan audit (sumber publik, 16 screenshot owner, brand guideline, kode v1): 39 temuan; dokumen lama tidak akurat (Bipy disebut lebah, palet `#982149`, tag yang belum ada, checklist kepatuhan yang belum diverifikasi, domain yang belum aktif). |
 | 24 Nov 2026 | v2 dimulai: Bpedia Preview clean-room, spesifikasi `docs/SPEC-CONTRACT.md`, `docs/SPEC-UIUX.md`, keputusan desain di atas. |
 | 24 Nov 2026 | v2 terintegrasi: modul 2.0.0, hub (toko demo, Hadiah, Transaksi, Akun), PRD pusat 2.0, keputusan 15–18, simulator PHP memakai berkas aturan modul. APK rilis dan build web dibuat dari kode ini. |
+| 25 Nov 2026 | Review 40 temuan diperbaiki (keputusan 19–23, aksesibilitas, ikon, lokalisasi iOS, batas simulator). APK `Bpedia-Demo-v2.0.0-universal.apk` dan `Bpedia-Demo-v2.0.0-arm64.apk` dibangun dari kode ini. Push ke GitHub dan tag `v2.0.0` belum dilakukan: menunggu persetujuan owner. |

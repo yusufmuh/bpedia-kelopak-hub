@@ -1,7 +1,9 @@
 /// The single persisted JSON document of the app.
 ///
 /// Key [appStateStorageKey], `"schema": 1`. A missing, corrupt or unknown-schema
-/// document loads as a fresh state instead of crashing.
+/// document loads as a fresh state instead of crashing. Every save raises
+/// [AppSnapshot.revision], so an app instance can tell when another one (a
+/// second browser tab) saved after it last read the document.
 library;
 
 import 'dart:convert';
@@ -25,6 +27,7 @@ final class AppSnapshot {
     required this.clockOffsetDays,
     required this.rewards,
     required this.shop,
+    this.revision = 0,
   });
 
   /// State of a first launch.
@@ -43,6 +46,8 @@ final class AppSnapshot {
     }
     final offset = readInt(json, 'clockOffsetDays', fallback: 0);
     if (offset < 0) throw const FormatException('Negative clock offset');
+    final revision = readInt(json, 'revision', fallback: 0);
+    if (revision < 0) throw const FormatException('Negative revision');
     return AppSnapshot(
       settings: json['settings'] == null
           ? const AppSettings()
@@ -54,6 +59,7 @@ final class AppSnapshot {
       shop: json['shop'] == null
           ? ShopState()
           : ShopState.fromJson(json['shop']),
+      revision: revision,
     );
   }
 
@@ -81,6 +87,18 @@ final class AppSnapshot {
   /// Cart and orders.
   final ShopState shop;
 
+  /// Save counter of the document (0 for a document that was never saved).
+  final int revision;
+
+  /// This snapshot with [revision] replaced.
+  AppSnapshot withRevision(int revision) => AppSnapshot(
+    settings: settings,
+    clockOffsetDays: clockOffsetDays,
+    rewards: rewards,
+    shop: shop,
+    revision: revision,
+  );
+
   /// Reads and decodes the document from [store].
   ///
   /// Errors from [KeyValueStore.read] are rethrown so callers can avoid
@@ -100,6 +118,7 @@ final class AppSnapshot {
   /// Serializes the snapshot.
   Map<String, Object?> toJson() => <String, Object?>{
     'schema': appStateSchema,
+    'revision': revision,
     'settings': settings.toJson(),
     'clockOffsetDays': clockOffsetDays,
     'rewards': rewards.toJson(),

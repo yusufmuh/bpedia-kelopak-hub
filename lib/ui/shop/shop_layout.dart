@@ -52,6 +52,9 @@ class CenteredWidth extends StatelessWidget {
 
 /// White bar for the page's main action: top hairline, safe-area aware,
 /// content capped at 560 dp. Use it as `Scaffold.bottomNavigationBar`.
+///
+/// It is its own focus traversal group, so the keyboard reaches it after the
+/// page content (wrap the page body in a [FocusTraversalGroup] as well).
 class BottomActionBar extends StatelessWidget {
   const BottomActionBar({super.key, required this.child});
 
@@ -61,21 +64,23 @@ class BottomActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: scheme.outlineVariant)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            BpSpace.s4,
-            BpSpace.s3,
-            BpSpace.s4,
-            BpSpace.s3,
+    return FocusTraversalGroup(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLowest,
+          border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BpSpace.s4,
+              BpSpace.s3,
+              BpSpace.s4,
+              BpSpace.s3,
+            ),
+            child: CenteredWidth(child: child),
           ),
-          child: CenteredWidth(child: child),
         ),
       ),
     );
@@ -143,6 +148,7 @@ class AmountRow extends StatelessWidget {
       ),
     };
     return Semantics(
+      container: true,
       label: '$label, ${semanticValue ?? value}',
       excludeSemantics: true,
       child: SizedBox(

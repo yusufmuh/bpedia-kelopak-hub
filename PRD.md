@@ -20,8 +20,10 @@ Dokumen ini tidak memuat rahasia, kata sandi, token, atau alamat email. Angka be
 | Versi | 2.0.0 (build 20) |
 | Status | Prototipe **Mode Demo**: tanpa login dan tanpa backend; semua data di perangkat. Belum dirilis ke toko. |
 | Isi | Toko demo (19 produk) + **Check-in Harian**, **Roda Sabtu**, **Misi Belanja**, Hadiahku, Riwayat Kelopak |
-| Tautan resmi | `https://bpedia.id` dan unduh app resmi (App Store/Google Play) `https://beautypediaofc.onelink.me/hebt/9fer7r7y`. Root `beautypediaofc.onelink.me/` membalas 403, jadi tidak dipakai. |
+| Tautan resmi | `https://bpedia.id` dan halaman toko resmi app Bpedia: App Store `https://apps.apple.com/app/id6751265630` (iPhone, iPad, Mac) dan Google Play `https://play.google.com/store/apps/details?id=com.wot.beautypedia` (lainnya). Tautan OneLink resmi (`beautypediaofc.onelink.me/hebt/9fer7r7y`) tidak dipakai karena lewat redirect atribusi AppsFlyer (media source "Blog", kampanye "hot_sale"); demo tidak melacak penggunanya. |
 | Batas clean-room | Kode dan aset APK produksi tidak dibongkar dan tidak dipakai. UI dibangun dari brand guideline resmi dan screenshot milik owner. |
+| Verifikasi (25 Nov 2026) | `flutter analyze` bersih di 4 repo; **364 tes** lolos (hub 109, Check-in 110, Roda 80, Misi 65). Review adversarial 5 lensa (aturan, UX/brand lewat browser, aksesibilitas, ketahanan, rilis): 40 temuan terkonfirmasi, semuanya ditangani; cek final independen lulus. |
+| Build | `Bpedia-Demo-v2.0.0-arm64.apk` (±21 MB, HP Android 64-bit) dan `Bpedia-Demo-v2.0.0-universal.apk` (±55 MB, semua ABI), ditandatangani kunci preview; build web di `build/web`. |
 
 ## 1. Latar belakang
 
@@ -86,7 +88,7 @@ Empat tab dengan label selalu tampil: **Beranda, Hadiah, Transaksi, Akun**. Kera
 
 ### 4.3 Hadiah
 
-Header saldo besar "12 Kelopak", "Setara Rp1.200", tautan Riwayat. Empat kartu berstatus: Check-in Harian, Roda Sabtu, Misi Belanja, Hadiahku. Hanya satu kartu yang memegang tombol utama (check-in bila tersedia, kalau tidak roda bila tersedia). Footer "Cara kerja Kelopak".
+Header saldo besar "12 Kelopak", "Setara Rp1.200", tautan Riwayat. Empat kartu berstatus: Check-in Harian, Roda Sabtu, Misi Belanja, Hadiahku. Hanya satu kartu yang memegang tombol utama (check-in bila tersedia, kalau tidak roda bila tersedia). Tombol check-in di kartu adalah "Ambil 1 Kelopak" yang langsung mengklaim (sama dengan Beranda); halaman Check-in Harian lewat tautan "Lihat Check-in Harian". Footer "Cara kerja Kelopak".
 
 ### 4.4 Check-in Harian
 
@@ -94,7 +96,7 @@ Jejak 7 hari bergaya tulip (Kebun Bipy dilebur di sini: kuncup = belum, mekar = 
 
 ### 4.5 Roda Sabtu
 
-Status di atas roda (Siap diputar / Buka Sabtu, tanggal · 00.00 WIB dengan hitung mundur / Sudah diputar Sabtu ini / Promo tidak aktif). Segmen sebanding peluang. **Tabel peluang di atas tombol** (peluang %, sisa kuota produk, ongkir). "Putar gratis" hanya aktif bila tersedia; selama berputar menjadi "Lewati animasi". Hasil tetap tertulis di kartu "Hasil Sabtu ini" setelah app dibuka ulang, dengan segmen roda yang sama seperti saat diputar (stok sebelum putaran ikut disimpan). S&K lengkap termasuk "Apple bukan sponsor dan tidak terlibat dalam promosi ini." dan kalimat yang sama untuk Google.
+Status di atas roda (Siap diputar / "Buka Sabtu, 28 Nov · 00.00 WIB" dengan hitung mundur / Sudah diputar Sabtu ini / Promo tidak aktif). Segmen sebanding peluang. Tabel peluang lengkap di halaman; **"Putar gratis" di bar bawah layar, tepat di bawah ringkasan peluang** ("Peluang: Produk gratis 10% · 3 Kelopak 90%"), jadi tombol selalu terlihat dan peluang selalu tampil sebelum tombol. Setelah diputar, roda dan tabel sama-sama menampilkan peluang saat putaran itu ("Peluang saat kamu memutar Sabtu ini"). "Putar gratis" hanya aktif bila tersedia; selama berputar menjadi "Lewati animasi" (tidak muncul bila gerakan dikurangi). Hasil tetap tertulis di kartu "Hasil Sabtu ini" setelah app dibuka ulang, dengan segmen roda yang sama seperti saat diputar (stok sebelum putaran ikut disimpan). S&K lengkap termasuk "Apple bukan sponsor dan tidak terlibat dalam promosi ini." dan kalimat yang sama untuk Google.
 
 ### 4.6 Misi Belanja
 
@@ -126,7 +128,7 @@ Profil "Pengguna Demo", Hadiahku, Riwayat Kelopak, Suara & getar (efek suara, mu
 
 **Umpan balik** (`docs/SPEC-UIUX.md` §4): check-in `claim` + getar ringan; bonus `bonus` + getar sedang; produk gratis `win_product` + getar kuat; roda `spin_start`, `tick` per pasak (maks. 25/detik) dan klik getar (maks. 12/detik); voucher terbit `unlock`; gagal `soft_error`. Efek suara tidak memotong musik app lain (Android tanpa audio focus, iOS ambient). Musik latar hanya di tab Hadiah dan layar game, bawaan mati.
 
-**Aksesibilitas:** target sentuh min. 48 dp; label Semantics di setiap kontrol; teks sampai 200% tanpa terpotong (layar 360 dp); kontras teks min. 4,5:1; status tidak hanya warna; animasi dilewati bila "kurangi gerakan" aktif; tooltip dan label bawaan Material berbahasa Indonesia ("Kembali", "Tutup").
+**Aksesibilitas:** target sentuh min. 48 dp; label Semantics di setiap kontrol, satu node per kartu atau blok teks (kartu yang bisa diketuk adalah satu tombol yang bisa difokus keyboard, dengan garis fokus Berry 2 dp); urutan fokus Tab: isi halaman dulu, lalu bar bawah dan navigasi; teks sampai 200% tanpa terpotong (layar 360 dp; judul halaman membungkus ke baris kedua); kontras teks min. 4,5:1; status tidak hanya warna (chip terpilih: garis dan label Berry); animasi dilewati bila "kurangi gerakan" aktif di Android (hapus animasi), iOS (Reduce Motion), atau browser (`prefers-reduced-motion`); tooltip dan label bawaan Material berbahasa Indonesia ("Kembali", "Tutup").
 
 ## 6. Server dan kontrak API
 
@@ -155,15 +157,15 @@ Pesan galat memakai bahasa UI yang sama dengan app. Detail per modul: PRD modul 
 | Repo | `bpedia-kelopak-hub` (paket `kelopak_hub`, app) + modul `bpedia-daily-checkin` (`daily_checkin`), `bpedia-roda-sabtu` (`roda_sabtu`), `bpedia-misi-belanja` (`misi_belanja`), semuanya bersebelahan; hub memakai modul lewat path `../bpedia-*`. |
 | Modul | Fungsi aturan murni + widget yang hanya memakai `Theme.of(context)`: `CheckInWeekTrack`, `CheckInMonthProgress`, `CheckInClaimButton`; `SaturdayWheel`, `OddsTable`; `MissionLadder`, `VoucherCard`, `rupiah()`. API persis: `docs/SPEC-CONTRACT.md` §2. |
 | Hub | `AppState` (ChangeNotifier lewat `AppScope`) memegang jam WIB + offset demo, `RewardsEngine` (ledger, check-in, roda, voucher, hak produk), `ShopEngine` (keranjang, checkout, pesanan), pengaturan, suara, dan getar. Engine deterministik: `today`, `roll`, dan `landingSeed` selalu disuntik; acak dari `Random.secure()`. |
-| Penyimpanan | Satu dokumen JSON di shared_preferences (`SharedPreferencesAsync`), kunci `bpedia_preview_state_v1`, `"schema": 1`. Dokumen rusak atau skema tak dikenal: mulai baru tanpa crash; gagal baca tidak pernah menimpa data. Simpan berjalan di latar dan berurutan. |
-| Paket | audioplayers 6.7.1, shared_preferences 2.5.6, flutter_svg 2.3.4, url_launcher 6.3.3, flutter_localizations (SDK); dev: flutter_launcher_icons 0.14.4, flutter_native_splash 2.4.7, flutter_lints 6.0.0. Versi lebih baru beberapa paket tidak resolve di Flutter 3.41.7. |
+| Penyimpanan | Satu dokumen JSON di shared_preferences (`SharedPreferencesAsync`), kunci `bpedia_preview_state_v1`, `"schema": 1`, dengan `revision` yang naik tiap simpan. Dokumen rusak atau skema tak dikenal: mulai baru tanpa crash; gagal baca tidak pernah menimpa data. Simpan berjalan di latar dan berurutan; sebelum menulis, revisi tersimpan dibaca ulang, dan bila tab browser lain sudah menyimpan revisi lebih baru, dokumen itu yang dipakai (tidak ditimpa) dan app memberi tahu "Data diperbarui dari tab lain." Di web, perubahan dari tab lain juga langsung diambil lewat event `storage`. |
+| Paket | audioplayers 6.7.1, shared_preferences 2.5.6, flutter_svg 2.3.4, url_launcher 6.3.3, web 1.1.1 (event `storage` dan `prefers-reduced-motion`), flutter_localizations (SDK); dev: flutter_launcher_icons 0.14.4, flutter_native_splash 2.4.7, flutter_lints 6.0.0. Versi lebih baru beberapa paket tidak resolve di Flutter 3.41.7. |
 | Bahasa | Locale tunggal `id` dengan delegasi Material, Cupertino, dan Widgets. |
 
 ## 8. Data, privasi, dan keamanan
 
 - Tidak ada akun, login, lokasi, kontak, atau data pribadi. Profil "Pengguna Demo". Data demo hanya di perangkat (Android DataStore, iOS NSUserDefaults, web localStorage per origin).
-- Tidak ada analitik atau pelacak.
-- Tautan keluar hanya ke `bpedia.id` dan tautan unduh resmi, dibuka di aplikasi luar.
+- Tidak ada analitik atau pelacak. Tautan unduh membuka halaman toko resmi secara langsung, bukan tautan atribusi (OneLink/AppsFlyer).
+- Tautan keluar hanya ke `bpedia.id` dan halaman App Store/Google Play app Bpedia resmi, dibuka di aplikasi luar.
 - Kunci rilis Android dibaca dari `android/key.properties` (diabaikan Git, tidak pernah di-commit atau ditampilkan). Repo publik: jangan menulis secret, kata sandi, token, atau alamat email ke kode maupun dokumen.
 
 ## 9. Kepatuhan toko
@@ -181,6 +183,21 @@ Pesan galat memakai bahasa UI yang sama dengan app. Detail per modul: PRD modul 
 - Aset di `assets/`: font brand (Poppins, Fraunces), render resmi Bipy dan logo, foto ilustrasi produk katalog demo, token Kelopak 3D, kado 3D, latar header Hadiah, 24 ikon SVG brand (versi mono dan berwarna) ditambah ikon Transaksi, 10 audio (`claim` dengan motif brand "Bi-py" E6 → A6, `bonus`, `win_product`, `spin_start`, `tick`, `unlock`, `soft_error`, `tap`, `brand_notifikasi`, `bgm_jingle`), ikon launcher dengan pita "DEMO", dan splash terang/gelap.
 - Alat generatif (gambar, musik, efek suara, 3D, video) boleh dipakai untuk aset **non-Bipy** dengan syarat: palet dan gaya brand, efek suara maks. 2,5 detik, musik loop mulus dan bawaan mati, gambar WebP ringan, dan dicek manusia sebelum masuk repo. Bipy tidak pernah dibuat ulang atau divariasikan dengan AI.
 - Ikon launcher dan splash dibuat ulang dengan `dart run flutter_launcher_icons` dan `dart run flutter_native_splash:create` dari berkas di `assets/launcher/`.
+
+**Alat yang benar-benar dipakai untuk v2 (24–25 Nov 2026).** Skrip ada di `tools/asset-pipeline/` (lihat README di sana).
+
+| Aset | Alat | Catatan |
+|---|---|---|
+| Font Poppins 400–800, Fraunces italic | fontTools + brotli (WOFF2 → TTF) | Subset Latin brand; glyph `≥ → ✓ ★ ♥` tidak ada |
+| Bipy (7 pose), logo wordmark + Bipy, ikon app | Render resmi brand guideline, dikonversi Pillow → WebP | Tidak ada varian AI |
+| Token Kelopak 3D, kado 3D | **Blender 5.2** headless (skrip bpy, render EEVEE) | Gaya clay selaras render Bipy |
+| Latar header Hadiah | **ComfyUI + RealVisXL V5 Lightning (SDXL)**, GPU RTX 3060 6 GB | Dikoreksi warna ke blush brand |
+| 18 foto ilustrasi produk + podium Vinylash | **ComfyUI + SDXL**; teks palsu AI dihapus (interpolasi per kolom); Vinylash = ilustrasi resmi brand di atas podium hasil SDXL | Label "Foto ilustrasi · Mode Demo"; produksi wajib foto resmi |
+| 8 efek suara | Sintesis NumPy/SciPy → ffmpeg MP3; `claim` memakai motif brand "Bi-py" E6 → A6 | Puncak ≤ 0,8, tanpa clipping, ≤ 2 detik |
+| Musik latar & notifikasi | `jingle.mp3` dan `notifikasi.mp3` resmi brand (`10_music`) | Musik bawaan mati |
+| Ikon launcher "DEMO", splash | Pillow + flutter_launcher_icons + flutter_native_splash | Label launcher maks. 12 karakter |
+
+Tidak dipakai (dan alasannya): generator video (model LTX 22B terlalu berat untuk GPU 6 GB dan video tidak menambah nilai di dalam app; cocok untuk materi promo), generator musik AI (sudah ada jingle resmi brand), generator 3D otomatis (render Blender terkontrol lebih konsisten dengan gaya Bipy).
 
 ## 11. Kualitas dan definisi selesai
 
@@ -203,7 +220,7 @@ Uji penerimaan bisnis (otomatis di modul dan hub):
 | AT-R3 | Tabel peluang, kuota, dan ongkir tampil sebelum tombol; hasil sama dengan engine dan tetap tampil setelah app dibuka ulang |
 | AT-M1 | Pesanan Rp74.999 tidak memenuhi tahap 1; Rp75.000 menerbitkan voucher Rp10.000; satu pesanan dihitung sekali |
 | AT-M2 | Voucher ditolak di bawah Rp100.000, di pesanan sumbernya, setelah dipakai, dan setelah kedaluwarsa (hari ke-30 masih berlaku) |
-| AT-C1 | Potongan Kelopak maks. 50% dari total setelah voucher dan tidak melebihi saldo; tercatat sebagai debit |
+| AT-C1 | Potongan Kelopak maks. 50% dari total setelah voucher dan tidak melebihi saldo; tercatat sebagai debit; checkout, "Cara kerja Kelopak", dan S&K menulis batas yang sama (`kelopakCapRule`) |
 | AT-U1 | Semua layar muat di 360 × 740 dengan teks 200% di terang dan gelap tanpa overflow |
 | AT-U2 | Target sentuh, label, dan kontras teks lolos pedoman di terang dan gelap |
 
@@ -219,7 +236,7 @@ Uji penerimaan bisnis (otomatis di modul dan hub):
 - APK: `flutter build apk --release` → `build/app/outputs/flutter-apk/app-release.apk` (minSdk 24 / Android 7.0+, targetSdk 36). Ditandatangani kunci preview bila `android/key.properties` ada; tanpa berkas itu memakai kunci debug mesin pembangun.
 - Web: `flutter build web --release` → `build/web`. Folder `build/` diabaikan Git, jadi hosting statis diisi manual atau lewat CI; domain hosting belum diputuskan.
 - iOS: butuh macOS, Xcode, dan akun Apple Developer owner; tim signing belum diisi.
-- Tag rilis belum ada di keempat repo. Integrasi ke app resmi mengunci modul ke tag rilis (sampai tag ada, ke hash commit). Langkah lengkap: `HANDOFF-PENGEMBANG.md` §8 dan §11.
+- Tag `v2.0.0` menandai rilis ini di keempat repo (25 Nov 2026). Integrasi ke app resmi mengunci modul ke tag rilis, bukan ke `main`. Langkah lengkap: `HANDOFF-PENGEMBANG.md` §8 dan §11.
 
 ## 13. Risiko dan keputusan terbuka
 
@@ -230,10 +247,12 @@ Uji penerimaan bisnis (otomatis di modul dan hub):
 5. Perbaikan listing app resmi (kebijakan privasi, rating usia, bahasa).
 6. Pemenuhan produk gratis: stok, pengiriman, dan subsidi ongkir.
 7. Hosting web preview dan domainnya.
+8. Riwayat Git publik hub masih memuat commit v1 (`f1f5af3`) berisi alamat email akun hosting dan berkas Bipy 2D. Pembersihan riwayat (filter-repo + force push + permintaan ke GitHub Support) menunggu persetujuan owner; langkah: `HANDOFF-PENGEMBANG.md` §13.
 
 ## 14. Riwayat
 
 | Versi | Tanggal | Perubahan |
 |---|---|---|
 | 1.0 | 24 Nov 2026 | PRD pusat pertama: aturan Kelopak, tiga modul, sketsa API, simulator PHP. |
+| 2.0 (revisi 25 Nov) | 25 Nov 2026 | Perbaikan hasil review (40 temuan): satu kalimat hitung mundur Roda Sabtu di semua layar, janji voucher misi hanya untuk pesanan yang pasti, klaim check-in satu ketukan di Hadiah, batas Kelopak "setelah voucher" di semua teks, peluang roda saat putaran, tombol "Putar gratis" di bar bawah, aksesibilitas (node Semantics per kartu, fokus keyboard, urutan Tab, Reduce Motion iOS/web, teks 200%), simpan beberapa tab browser tanpa kehilangan data, timer 00.00 WIB setelah ponsel tidur, musik latar, jam perangkat mundur, tautan toko tanpa atribusi, ikon web/Android, lokalisasi iOS `id`, batas sesi simulator PHP. |
 | 2.0 | 24 Nov 2026 | Rombak total berdasarkan riset dan audit UX: Bpedia Preview clean-room dengan Mode Demo, toko demo + tiga game, IA 4 tab, brand resmi, aksesibilitas, `docs/SPEC-CONTRACT.md` dan `docs/SPEC-UIUX.md`. Klaim v1 yang keliru dihapus (Bipy sebagai lebah, palet `#982149`, domain dan auto-deploy yang belum ada, alamat email). Integrasi: nama tampil "Bpedia Demo", tombol pil, Berry Night dengan isian yang terlihat di atas kartu, bahasa Indonesia untuk widget bawaan, ikon Transaksi sendiri, foto produk beranimasi ke detail, segmen roda tersimpan bersama putaran, simulator PHP memakai berkas aturan modul. |

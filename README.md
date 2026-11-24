@@ -73,7 +73,8 @@ Aturan bisnis ada di tiga modul ([daily_checkin](https://github.com/yusufmuh/bpe
 ## Build
 
 ```bash
-flutter build apk --release      # build/app/outputs/flutter-apk/app-release.apk
+flutter build apk --release      # build/app/outputs/flutter-apk/app-release.apk (universal, versionCode 20)
+flutter build apk --release --split-per-abi   # per ABI; versionCode 1020/2020/4020, lihat HANDOFF §8
 flutter build web --release      # build/web
 MSYS_NO_PATHCONV=1 flutter build web --release --base-href /kelopak/   # subfolder, dari Git Bash
 ```

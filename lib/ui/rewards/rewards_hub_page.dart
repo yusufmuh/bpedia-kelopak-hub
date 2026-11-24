@@ -8,10 +8,12 @@ import '../../core/format.dart';
 import '../../core/tokens.dart';
 import '../../domain/app_state.dart';
 import '../widgets/widgets.dart';
+import 'check_in_claim.dart';
 import 'checkin_page.dart';
 import 'ledger_page.dart';
 import 'missions_page.dart';
 import 'my_rewards_page.dart';
+import 'reward_copy.dart';
 import 'rewards_sheets.dart';
 import 'rewards_widgets.dart';
 import 'wheel_page.dart';
@@ -23,7 +25,8 @@ enum _Focus { checkIn, wheel, none }
 /// Hadiahku and the Kelopak rules.
 ///
 /// Only the most useful action right now gets the filled button (check-in
-/// first, then the Saturday spin); everything else is a text link.
+/// first, then the Saturday spin); everything else is a text link. The
+/// check-in button claims right here ("Ambil 1 Kelopak"), like on Beranda.
 class RewardsHubPage extends StatelessWidget {
   const RewardsHubPage({super.key});
 
@@ -38,10 +41,10 @@ class RewardsHubPage extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: <Widget>[
-          const SliverAppBar(
+          SliverAppBar(
             pinned: true,
-            title: Text('Hadiah'),
-            actions: demoAppBarActions,
+            title: const Text('Hadiah'),
+            actions: demoAppBarActions(context),
           ),
           SliverToBoxAdapter(child: _BalanceHeader(balance: app.balance)),
           SliverPadding(
@@ -56,6 +59,7 @@ class RewardsHubPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
+                    const DemoBodyChip(),
                     _CheckInCard(emphasized: focus == _Focus.checkIn),
                     const SizedBox(height: BpSpace.s3),
                     _WheelCard(emphasized: focus == _Focus.wheel),
@@ -368,7 +372,7 @@ class _CheckInCard extends StatelessWidget {
     final live = app.liveStreak;
     final String detail;
     if (claimed) {
-      detail = 'Hari ke-$live beruntun. Kembali besok mulai 00.00 WIB.';
+      detail = 'Hari ke-$live beruntun. ${checkInReturnLine(app)}.';
     } else if (app.streakBroken) {
       detail = 'Rentetanmu mulai lagi dari Hari 1. Kelopak kamu tetap aman.';
     } else if (live > 0) {
@@ -400,11 +404,44 @@ class _CheckInCard extends StatelessWidget {
         currencyIcon: const KelopakToken(size: 16),
         bonusIcon: const GiftArt(size: 22),
       ),
-      action: _CardAction(
-        label: claimed ? 'Lihat progres' : 'Check-in sekarang',
-        emphasized: emphasized,
-        onPressed: () => openRewardsPage(context, const CheckInPage()),
+      action: claimed
+          ? _CardAction(
+              label: 'Lihat progres',
+              emphasized: emphasized,
+              onPressed: () => openRewardsPage(context, const CheckInPage()),
+            )
+          : const _ClaimAction(),
+    );
+  }
+}
+
+/// "Ambil 1 Kelopak" that claims in place (the same one-tap claim as on
+/// Beranda; an open check-in always holds the hub's primary button), plus a
+/// quiet link to the full Check-in Harian page.
+class _ClaimAction extends StatelessWidget {
+  const _ClaimAction();
+
+  @override
+  Widget build(BuildContext context) {
+    final claim = Builder(
+      builder: (buttonContext) => FilledButton(
+        onPressed: () =>
+            claimTodayWithCelebration(buttonContext, showRewardsLink: false),
+        child: const Text('Ambil 1 Kelopak', textAlign: TextAlign.center),
       ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(bottom: BpSpace.s1),
+          child: claim,
+        ),
+        _CardAction(
+          label: 'Lihat Check-in Harian',
+          onPressed: () => openRewardsPage(context, const CheckInPage()),
+        ),
+      ],
     );
   }
 }
@@ -417,7 +454,7 @@ class _WheelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final nextSaturday = shortDateLabel(app.nextSaturday);
+    final opening = app.nextSpinOpening;
     final Widget status;
     final Widget detail;
     switch (app.spinEligibility) {
@@ -431,24 +468,32 @@ class _WheelCard extends StatelessWidget {
       case SpinEligibility.alreadySpun:
         final record = app.todaySpin;
         final label = record == null ? null : app.prizeFor(record)?.label;
+        final String done;
+        if (label != null) {
+          done = 'Hasil: $label. ';
+        } else if (spinDatedAhead(app)) {
+          done = '${spinUsedTitle(app)}. ';
+        } else {
+          done = '';
+        }
         status = const StatusPill(
           Icons.check_circle_rounded,
           'Sudah diputar',
           tone: StatusTone.success,
         );
         detail = Text(
-          '${label == null ? '' : 'Hasil: $label. '}'
-          'Buka lagi Sabtu, $nextSaturday · 00.00 WIB.',
+          '${done}Buka lagi ${opening.opensAtLabel}, '
+          '${opening.remainingLabel}.',
         );
       case SpinEligibility.notSaturday:
         status = StatusPill(
           Icons.schedule_rounded,
-          'Buka Sabtu, $nextSaturday',
+          'Buka ${opening.opensAtLabel}',
           tone: StatusTone.neutral,
         );
         detail = const SpinCountdownText(
-          prefix: 'Mulai 00.00 WIB, ',
-          suffix: ' lagi.',
+          prefix: 'Putaran gratis berikutnya ',
+          suffix: '.',
         );
       case SpinEligibility.promoInactive:
         status = const StatusPill(

@@ -23,7 +23,10 @@ void main() {
     expect(state.nextCheckInStreakDay, 1);
     expect(state.isSaturday, isFalse);
     expect(state.nextSaturday, saturday);
-    expect(state.daysUntilNextSaturday, 4);
+    expect(state.nextSpinSaturday, saturday);
+    expect(state.nextSpinOpening.daysLeft, 4);
+    expect(state.nextSpinOpening.remainingLabel, '4 hari lagi');
+    expect(state.nextSpinOpening.opensAtLabel, 'Sabtu, 28 Nov · 00.00 WIB');
     expect(state.spinEligibility, SpinEligibility.notSaturday);
     expect(state.isCartEmpty, isTrue);
     expect(state.activeMissionStage?.number, 1);

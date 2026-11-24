@@ -165,107 +165,108 @@ class _OrderCard extends StatelessWidget {
     if (shipped) summary.write('. Konfirmasi setelah barang sampai');
 
     return Semantics(
+      container: true,
       button: true,
       label: summary.toString(),
-      excludeSemantics: true,
-      onTap: () => openOrder(context, order.id),
       child: SoftCard(
         onTap: () => openOrder(context, order.id),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: BpSpace.s2,
-              runSpacing: BpSpace.s2,
-              children: <Widget>[
-                Text(order.id, style: text.titleSmall),
-                OrderStatusPill(order.status),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              wibDateLabel(order.placedDay),
-              style: text.labelMedium!.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            if (first != null) ...<Widget>[
-              const SizedBox(height: BpSpace.s3),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  ProductThumbnail(first.imageAsset, size: 56),
-                  const SizedBox(width: BpSpace.s3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          first.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.bodyMedium!.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (others > 0)
-                          Text(
-                            '+$others produk lain',
-                            style: text.bodyMedium!.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: BpSpace.s3),
-            SizedBox(
-              width: double.infinity,
-              child: Wrap(
+        child: ExcludeSemantics(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: BpSpace.s3,
+                spacing: BpSpace.s2,
+                runSpacing: BpSpace.s2,
                 children: <Widget>[
-                  Text(
-                    '${order.itemCount} barang',
-                    style: text.bodyMedium!.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    rupiah(order.total),
-                    style: text.bpPrice.copyWith(color: scheme.secondary),
-                  ),
+                  Text(order.id, style: text.titleSmall),
+                  OrderStatusPill(order.status),
                 ],
               ),
-            ),
-            if (shipped) ...<Widget>[
-              const Divider(height: BpSpace.s6),
-              Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.touch_app_outlined,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: BpSpace.s2),
-                  Expanded(
-                    child: Text(
-                      'Sudah sampai? Buka untuk tekan Pesanan Diterima',
-                      style: text.bodyMedium!.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
+              const SizedBox(height: 2),
+              Text(
+                wibDateLabel(order.placedDay),
+                style: text.labelMedium!.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              if (first != null) ...<Widget>[
+                const SizedBox(height: BpSpace.s3),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    ProductThumbnail(first.imageAsset, size: 56),
+                    const SizedBox(width: BpSpace.s3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            first.name,
+                            style: text.bodyMedium!.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (others > 0)
+                            Text(
+                              '+$others produk lain',
+                              style: text.bodyMedium!.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: scheme.primary),
-                ],
+                  ],
+                ),
+              ],
+              const SizedBox(height: BpSpace.s3),
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: BpSpace.s3,
+                  children: <Widget>[
+                    Text(
+                      '${order.itemCount} barang',
+                      style: text.bodyMedium!.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      rupiah(order.total),
+                      style: text.bpPrice.copyWith(color: scheme.secondary),
+                    ),
+                  ],
+                ),
               ),
+              if (shipped) ...<Widget>[
+                const Divider(height: BpSpace.s6),
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.touch_app_outlined,
+                      size: 18,
+                      color: scheme.primary,
+                    ),
+                    const SizedBox(width: BpSpace.s2),
+                    Expanded(
+                      child: Text(
+                        'Sudah sampai? Buka untuk tekan Pesanan Diterima',
+                        style: text.bodyMedium!.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: scheme.primary),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

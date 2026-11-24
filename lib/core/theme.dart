@@ -109,6 +109,9 @@ ThemeData _buildTheme(BpColors c, Brightness brightness) {
     textTheme: text,
     scaffoldBackgroundColor: scheme.surface,
     canvasColor: scheme.surface,
+    // Keyboard focus on ink surfaces: a Berry tint instead of the faint grey
+    // default (cards add a 2 dp Berry outline on top).
+    focusColor: scheme.secondary.withValues(alpha: 0.16),
     iconTheme: IconThemeData(color: scheme.onSurface, size: BpSize.icon),
     dividerColor: scheme.outlineVariant,
     textSelectionTheme: TextSelectionThemeData(
@@ -204,20 +207,27 @@ ThemeData _buildTheme(BpColors c, Brightness brightness) {
       clipBehavior: Clip.antiAlias,
       shape: cardShape,
     ),
+    // Brand chips: inactive = white, line border, Plum label; selected =
+    // blush fill with a Berry border and Berry label, so the state never
+    // rests on the fill alone (the fills differ only about 1.2:1).
     chipTheme: ChipThemeData(
       backgroundColor: scheme.surfaceContainerLowest,
       selectedColor: scheme.primaryContainer,
       disabledColor: scheme.surfaceContainer,
-      checkmarkColor: scheme.onPrimaryContainer,
+      checkmarkColor: scheme.secondary,
       labelStyle: text.bodyMedium!.copyWith(
-        color: scheme.onSurface,
         fontWeight: FontWeight.w500,
+        color: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? scheme.secondary
+              : scheme.onSurface,
+        ),
       ),
-      secondaryLabelStyle: text.bodyMedium!.copyWith(
-        color: scheme.onPrimaryContainer,
-        fontWeight: FontWeight.w600,
+      side: WidgetStateBorderSide.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? BorderSide(color: scheme.secondary, width: 1.5)
+            : BorderSide(color: scheme.outlineVariant),
       ),
-      side: BorderSide(color: scheme.outlineVariant),
       shape: const StadiumBorder(),
       padding: const EdgeInsets.symmetric(
         horizontal: BpSpace.s2,
@@ -447,7 +457,11 @@ ColorScheme _colorScheme(BpColors c, Brightness brightness) {
     onPrimaryContainer: c.plum900,
     secondary: c.berry700,
     onSecondary: c.onPink,
-    secondaryContainer: c.pink200,
+    // Berry Night: a step lighter than primaryContainer (also pink-200 there),
+    // so alternating fills such as the wheel segments stay distinguishable.
+    secondaryContainer: isDark
+        ? Color.alphaBlend(c.tulip300.withValues(alpha: 0.35), c.card)
+        : c.pink200,
     onSecondaryContainer: c.plum900,
     tertiary: c.honey400,
     onTertiary: c.night950,

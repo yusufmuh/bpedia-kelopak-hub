@@ -27,7 +27,7 @@ class CartPage extends StatelessWidget {
         body: Center(
           child: SingleChildScrollView(
             child: EmptyState(
-              imageAsset: AppImages.bipyTasHati,
+              imageAsset: AppImages.bipyNgintip,
               title: 'Keranjangmu masih kosong',
               body: 'Yuk, pilih produk favoritmu dulu, Babes.',
               actionLabel: 'Mulai belanja',
@@ -46,37 +46,43 @@ class CartPage extends StatelessWidget {
       tone: AmountTone.total,
     );
 
+    final title = 'Keranjang ($count)';
     return Scaffold(
-      appBar: AppBar(title: Text('Keranjang ($count)')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          BpSpace.s4,
-          BpSpace.s2,
-          BpSpace.s4,
-          BpSpace.s6,
-        ),
-        children: <Widget>[
-          CenteredWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (final item in items) ...<Widget>[
-                  _CartLineCard(
-                    key: ValueKey<String>(item.product.id),
-                    item: item,
-                  ),
-                  const SizedBox(height: BpSpace.s3),
-                ],
-                if (large) ...<Widget>[
-                  SoftCard(child: subtotalRow),
-                  const SizedBox(height: BpSpace.s3),
-                ],
-                const SizedBox(height: BpSpace.s1),
-                _CartHints(subtotal: subtotal),
-              ],
-            ),
+      appBar: AppBar(
+        toolbarHeight: pageToolbarHeight(context, title),
+        title: PageTitle(title),
+      ),
+      body: FocusTraversalGroup(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            BpSpace.s4,
+            BpSpace.s2,
+            BpSpace.s4,
+            BpSpace.s6,
           ),
-        ],
+          children: <Widget>[
+            CenteredWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (final item in items) ...<Widget>[
+                    _CartLineCard(
+                      key: ValueKey<String>(item.product.id),
+                      item: item,
+                    ),
+                    const SizedBox(height: BpSpace.s3),
+                  ],
+                  if (large) ...<Widget>[
+                    SoftCard(child: subtotalRow),
+                    const SizedBox(height: BpSpace.s3),
+                  ],
+                  const SizedBox(height: BpSpace.s1),
+                  _CartHints(subtotal: subtotal),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomActionBar(
         child: Column(
@@ -121,67 +127,68 @@ class _CartLineCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final product = item.product;
-    return SoftCard(
-      padding: const EdgeInsets.all(BpSpace.s3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Semantics(
-            button: true,
-            label: 'Lihat ${product.name}',
-            excludeSemantics: true,
-            onTap: () => openProduct(context, product.id),
-            child: InkWell(
-              onTap: () => openProduct(context, product.id),
-              borderRadius: BorderRadius.circular(BpRadius.sm),
-              child: ProductThumbnail(product.imageAsset),
+    // One node per line: name and price are read together with this line's
+    // own controls (photo link, quantity, delete).
+    return Semantics(
+      container: true,
+      child: SoftCard(
+        padding: const EdgeInsets.all(BpSpace.s3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Semantics(
+              container: true,
+              button: true,
+              label: 'Lihat ${product.name}',
+              child: InkWell(
+                onTap: () => openProduct(context, product.id),
+                borderRadius: BorderRadius.circular(BpRadius.sm),
+                child: ExcludeSemantics(
+                  child: ProductThumbnail(product.imageAsset),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: BpSpace.s3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  product.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall,
-                ),
-                const SizedBox(height: BpSpace.s1),
-                PriceText(
-                  product.price,
-                  product.strikePrice,
-                  compact: true,
-                  showDiscount: false,
-                ),
-                const SizedBox(height: BpSpace.s2),
-                Wrap(
-                  spacing: BpSpace.s2,
-                  runSpacing: BpSpace.s1,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: <Widget>[
-                    QuantityStepper(
-                      value: item.qty,
-                      max: cartMaxQty,
-                      onChanged: (value) {
-                        final app = AppScope.read(context);
-                        app.setQty(product.id, value);
-                        app.haptics.selection();
-                      },
-                    ),
-                    IconButton(
-                      tooltip: 'Hapus dari keranjang',
-                      color: scheme.onSurfaceVariant,
-                      onPressed: () => _remove(context),
-                      icon: const Icon(Icons.delete_outline_rounded),
-                    ),
-                  ],
-                ),
-              ],
+            const SizedBox(width: BpSpace.s3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(product.name, style: theme.textTheme.titleSmall),
+                  const SizedBox(height: BpSpace.s1),
+                  PriceText(
+                    product.price,
+                    product.strikePrice,
+                    compact: true,
+                    showDiscount: false,
+                  ),
+                  const SizedBox(height: BpSpace.s2),
+                  Wrap(
+                    spacing: BpSpace.s2,
+                    runSpacing: BpSpace.s1,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: <Widget>[
+                      QuantityStepper(
+                        value: item.qty,
+                        max: cartMaxQty,
+                        onChanged: (value) {
+                          final app = AppScope.read(context);
+                          app.setQty(product.id, value);
+                          app.haptics.selection();
+                        },
+                      ),
+                      IconButton(
+                        tooltip: 'Hapus dari keranjang',
+                        color: scheme.onSurfaceVariant,
+                        onPressed: () => _remove(context),
+                        icon: const Icon(Icons.delete_outline_rounded),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -208,6 +215,7 @@ class _CartHints extends StatelessWidget {
               stage: stage,
               subtotal: subtotal,
               shortfall: app.missionShortfallFor(subtotal),
+              waiting: app.ordersAwaitingMission.length,
             ),
           if (stage != null && voucher != null)
             const Divider(height: BpSpace.s6),
@@ -262,11 +270,16 @@ class _MissionProgress extends StatelessWidget {
     required this.stage,
     required this.subtotal,
     required this.shortfall,
+    required this.waiting,
   });
 
   final MissionStage stage;
   final int subtotal;
   final int shortfall;
+
+  /// Shipped orders that already qualify for [stage] (one order completes
+  /// one stage, so this cart only counts when it is received first).
+  final int waiting;
 
   @override
   Widget build(BuildContext context) {
@@ -275,11 +288,22 @@ class _MissionProgress extends StatelessWidget {
     final target = stage.minOrderSubtotal;
     final counted = subtotal < target ? subtotal : target;
     final progress = target <= 0 ? 1.0 : counted / target;
-    final message = shortfall > 0
-        ? 'Tambah ${rupiah(shortfall)} lagi agar pesanan ini ikut Misi Belanja '
-              'tahap ${stage.number}'
-        : 'Pesanan ini memenuhi syarat Misi Belanja tahap ${stage.number} '
-              'setelah diterima';
+    final String message;
+    if (shortfall > 0) {
+      message =
+          'Tambah ${rupiah(shortfall)} lagi agar pesanan ini ikut Misi Belanja '
+          'tahap ${stage.number}';
+    } else if (waiting > 0) {
+      message =
+          'Sudah ada pesanan Dikirim yang memenuhi syarat tahap '
+          '${stage.number}. Satu pesanan menyelesaikan satu tahap; pesanan '
+          'ini hanya dihitung untuk tahap ${stage.number} bila diterima lebih '
+          'dulu.';
+    } else {
+      message =
+          'Pesanan ini memenuhi syarat Misi Belanja tahap ${stage.number} '
+          'setelah diterima';
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

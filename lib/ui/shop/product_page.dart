@@ -57,9 +57,15 @@ class _ProductPageState extends State<ProductPage> {
       onChanged: room > 0 ? (value) => setState(() => _qty = value) : null,
     );
 
+    const title = 'Detail produk';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detail produk'),
+        toolbarHeight: pageToolbarHeight(
+          context,
+          title,
+          actionsWidth: BpSize.touchTarget + BpSpace.s1,
+        ),
+        title: const PageTitle(title),
         actions: const <Widget>[
           CartButton(),
           SizedBox(width: BpSpace.s1),
@@ -73,33 +79,37 @@ class _ProductPageState extends State<ProductPage> {
               (constraints.maxWidth - BpSize.contentMaxWidth) / 2 + BpSpace.s4,
             ),
           );
-          return ListView(
-            padding: const EdgeInsets.only(bottom: BpSpace.s8),
-            children: <Widget>[
-              CenteredWidth(
-                child: _ProductDetails(
-                  product: product,
-                  inCart: inCart,
-                  stage: stage,
-                  quantity: large ? stepper : null,
+          // The page (including "Produk lain") comes before the bar's
+          // "Tambah ke keranjang" in keyboard order.
+          return FocusTraversalGroup(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: BpSpace.s8),
+              children: <Widget>[
+                CenteredWidth(
+                  child: _ProductDetails(
+                    product: product,
+                    inCart: inCart,
+                    stage: stage,
+                    quantity: large ? stepper : null,
+                  ),
                 ),
-              ),
-              if (others.isNotEmpty) ...<Widget>[
-                const SizedBox(height: BpSpace.s8),
-                Padding(
-                  padding: inset,
-                  child: const SectionHeader('Produk lain'),
-                ),
-                const SizedBox(height: BpSpace.s3),
-                ProductCarousel(
-                  products: others,
-                  heroPackshots: true,
-                  padding: inset,
-                  onTap: (other) => openProduct(context, other.id),
-                  onAddToCart: (other) => addToCartWithFeedback(context, other),
-                ),
+                if (others.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: BpSpace.s8),
+                  Padding(
+                    padding: inset,
+                    child: const SectionHeader('Produk lain'),
+                  ),
+                  const SizedBox(height: BpSpace.s3),
+                  ProductCarousel(
+                    products: others,
+                    padding: inset,
+                    onTap: (other) => openProduct(context, other.id),
+                    onAddToCart: (other) =>
+                        addToCartWithFeedback(context, other),
+                  ),
+                ],
               ],
-            ],
+            ),
           );
         },
       ),
@@ -193,10 +203,13 @@ class _ProductDetails extends StatelessWidget {
             BpSpace.s4,
             0,
           ),
-          child: IconText(
-            Icons.photo_camera_outlined,
-            'Foto ilustrasi · Mode Demo',
-            style: text.labelMedium!.copyWith(color: scheme.onSurfaceVariant),
+          child: Semantics(
+            container: true,
+            child: IconText(
+              Icons.photo_camera_outlined,
+              'Foto ilustrasi · Mode Demo',
+              style: text.labelMedium!.copyWith(color: scheme.onSurfaceVariant),
+            ),
           ),
         ),
         Padding(
@@ -209,39 +222,52 @@ class _ProductDetails extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                product.brand,
-                style: text.bodyMedium!.copyWith(
-                  color: scheme.secondary,
-                  fontWeight: FontWeight.w600,
+              // Brand, name and price as one item; badges as another.
+              MergeSemantics(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      product.brand,
+                      style: text.bodyMedium!.copyWith(
+                        color: scheme.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: BpSpace.s1),
+                    Text(product.name, style: text.titleLarge),
+                    const SizedBox(height: BpSpace.s2),
+                    PriceText(product.price, product.strikePrice),
+                  ],
                 ),
               ),
-              const SizedBox(height: BpSpace.s1),
-              Text(product.name, style: text.titleLarge),
-              const SizedBox(height: BpSpace.s2),
-              PriceText(product.price, product.strikePrice),
               const SizedBox(height: BpSpace.s3),
-              Wrap(
-                spacing: BpSpace.s2,
-                runSpacing: BpSpace.s2,
-                children: <Widget>[
-                  const StatusPill(
-                    Icons.verified_rounded,
-                    'Original',
-                    tone: StatusTone.success,
-                  ),
-                  const StatusPill(
-                    Icons.local_shipping_outlined,
-                    'Gratis ongkir (Demo)',
-                    tone: StatusTone.brand,
-                  ),
-                  if (product.isHot) const HotPill(),
-                  if (inCart > 0)
-                    StatusPill(
-                      Icons.shopping_bag_outlined,
-                      '$inCart di keranjang',
+              Semantics(
+                container: true,
+                child: Wrap(
+                  spacing: BpSpace.s2,
+                  runSpacing: BpSpace.s2,
+                  children: <Widget>[
+                    BrandBadge(
+                      icon: BrandIcons.original,
+                      label: 'Original',
+                      foreground: BpColors.of(context).success700,
+                      background: BpColors.of(context).success100,
                     ),
-                ],
+                    BrandBadge(
+                      icon: BrandIcons.ongkir,
+                      label: 'Gratis ongkir (Demo)',
+                      foreground: scheme.secondary,
+                      background: scheme.primaryContainer,
+                    ),
+                    if (product.isHot) const HotPill(),
+                    if (inCart > 0)
+                      StatusPill(
+                        Icons.shopping_bag_outlined,
+                        '$inCart di keranjang',
+                      ),
+                  ],
+                ),
               ),
               if (quantityStepper != null) ...<Widget>[
                 const SizedBox(height: BpSpace.s4),
@@ -250,7 +276,10 @@ class _ProductDetails extends StatelessWidget {
                   runSpacing: BpSpace.s2,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: <Widget>[
-                    Text('Jumlah', style: text.titleSmall),
+                    Semantics(
+                      container: true,
+                      child: Text('Jumlah', style: text.titleSmall),
+                    ),
                     quantityStepper,
                   ],
                 ),
@@ -266,11 +295,16 @@ class _ProductDetails extends StatelessWidget {
             children: <Widget>[
               const SectionHeader('Deskripsi'),
               const SizedBox(height: BpSpace.s2),
-              Text(
-                '${product.category.label} dari ${product.brand}. '
-                'Nama & harga mengikuti bpedia.id per 24 Nov 2026 untuk '
-                'keperluan demo.',
-                style: text.bodyLarge!.copyWith(color: scheme.onSurfaceVariant),
+              Semantics(
+                container: true,
+                child: Text(
+                  '${product.category.label} dari ${product.brand}. '
+                  'Nama & harga mengikuti bpedia.id per 24 Nov 2026 untuk '
+                  'keperluan demo.',
+                  style: text.bodyLarge!.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
@@ -302,35 +336,36 @@ class _MissionGoalCard extends StatelessWidget {
         'Selesaikan pesanan min. ${rupiah(stage.minOrderSubtotal)}, '
         'dapat voucher ${rupiah(stage.voucherAmount)}';
     return Semantics(
+      container: true,
       button: true,
       label: '$title. $body',
       hint: 'Buka Misi Belanja',
-      excludeSemantics: true,
-      onTap: () => openMissions(context),
       child: SoftCard(
         onTap: () => openMissions(context),
-        child: Row(
-          children: <Widget>[
-            const IconWell(child: BrandIcon(BrandIcons.voucher, size: 26)),
-            const SizedBox(width: BpSpace.s3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(title, style: theme.textTheme.titleSmall),
-                  const SizedBox(height: 2),
-                  Text(
-                    body,
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: scheme.onSurfaceVariant,
+        child: ExcludeSemantics(
+          child: Row(
+            children: <Widget>[
+              const IconWell(child: BrandIcon(BrandIcons.voucher, size: 26)),
+              const SizedBox(width: BpSpace.s3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(title, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      body,
+                      style: theme.textTheme.bodyMedium!.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: BpSpace.s2),
-            Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
-          ],
+              const SizedBox(width: BpSpace.s2),
+              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+            ],
+          ),
         ),
       ),
     );
