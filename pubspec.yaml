@@ -1,15 +1,21 @@
 name: kelopak_hub
-description: "A new Flutter project."
+description: "Pusat Hub Aplikasi Bpedia Kelopak"
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
-  sdk: ^3.11.5
+  sdk: '>=3.11.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   shared_preferences: 2.5.5
+  daily_checkin:
+    path: ../bpedia-daily-checkin
+  roda_sabtu:
+    path: ../bpedia-roda-sabtu
+  misi_belanja:
+    path: ../bpedia-misi-belanja
 
 dev_dependencies:
   flutter_test:
@@ -18,3 +24,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
+    - assets/studio/

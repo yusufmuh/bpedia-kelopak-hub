@@ -1,170 +1,271 @@
 # PRD Pusat · Bpedia Kelopak (Game Hadiah Flutter)
 
-**Versi 0.2 · 24 November 2026 · Owner: Muhammad Yusuf (Bpedia)**
-Dokumen ini adalah **sumber kebenaran tunggal** untuk Claude, Antigravity (Gemini), Codex, dan pengembang manusia.
-Kalau ada konflik antara dokumen ini dan PRD modul, dokumen ini yang berlaku untuk aturan lintas fitur; PRD modul berlaku untuk detail fitur itu sendiri.
+**Versi 1.0 (Final & Resmi) · 24 November 2026 · Owner: Muhammad Yusuf (Bpedia)**  
+Dokumen ini adalah **sumber kebenaran tunggal (Single Source of Truth)** untuk Claude, Antigravity (Gemini), Codex, dan tim pengembang aplikasi Bpedia.
 
-| Dokumen | Isi |
-|---|---|
-| `PRD.md` (file ini) | Visi, ekonomi Kelopak, arsitektur, kontrak API, repositori, rilis |
-| `MEMORY.md` | Keputusan pemilik produk + asumsi yang masih menunggu keputusan |
-| `GAMBARAN.md` | Alur pengguna, diagram, arah visual |
-| `HANDOFF-PENGEMBANG.md` | Cara setup, kerja, dan kirim perubahan (untuk dibagikan ke developer lain) |
-| PRD modul | `bpedia-daily-checkin/PRD.md`, `bpedia-roda-sabtu/PRD.md`, `bpedia-misi-belanja/PRD.md` |
+Jika terdapat perbedaan antara dokumen ini dan PRD modul individu, ketentuan dalam dokumen ini yang berlaku untuk arsitektur, ekonomi, dan aturan lintas fitur.
 
 ---
 
-## 1. Tujuan
+## 1. Visi & Tujuan Produk
 
-Membuat pengguna aplikasi Bpedia (Play Store, App Store, dan web) **kembali setiap hari** dan **belanja ulang**, lewat tiga kegiatan ringan yang semuanya bermuara pada satu dompet poin bernama **Kelopak**.
+Membangun ekosistem loyalitas interaktif bagi pembeli aplikasi Bpedia (tersedia di **Google Play Store**, **Apple App Store**, dan **Web**) yang mendorong:
+1. **Retensi Harian (*Daily Habit*)**: Pengguna membuka aplikasi setiap hari untuk mengklaim Kelopak.
+2. **Keterlibatan Mingguan (*Weekly Excitement*)**: Pengguna menantikan hari Sabtu untuk memutar Roda Keberuntungan gratis.
+3. **Konversi Belanja Berulang (*Repeat Order Driver*)**: Misi belanja bertingkat yang memberikan voucher belanja berikutnya setelah pesanan selesai.
 
-Ukuran keberhasilan (target diisi tim bisnis setelah baseline ada, **jangan mengarang angka**):
-- % pengguna aktif yang check-in per hari, retensi hari ke-7 dan ke-30.
-- % pengguna yang memutar Roda Sabtu dari yang memenuhi syarat.
-- % voucher Misi Belanja yang ditukar dan rasio pesanan ulang.
-- Biaya hadiah per pengguna aktif vs. kenaikan GMV.
+Semua kegiatan bermuara pada satu dompet loyalitas terpadu bernama **Kelopak**.
 
-## 2. Mata uang: Kelopak
+---
 
-| Aturan | Nilai |
+## 2. Mata Uang Loyalitas: Kelopak
+
+| Aturan Bisnis | Nilai & Spesifikasi |
 |---|---|
-| Nama | **Kelopak** (bukan "koin", agar beda dari Shopee) |
-| Nilai | 1 Kelopak = Rp100 |
-| Tipe data | Integer. Tidak ada pecahan. Saldo tidak boleh negatif. |
-| Penyimpanan | Ledger append-only di server Bpedia. Saldo = jumlah entri ledger. Klien tidak pernah menghitung saldo sendiri. |
-| Perlu keputusan bisnis | Cara penukaran di checkout, batas pemakaian per pesanan, masa kedaluwarsa, perlakuan saat retur |
+| **Nama Mata Uang** | **Kelopak** (Bukan "koin", untuk membedakan secara unik dari Shopee Koin). |
+| **Nilai Tukar** | **1 Kelopak = Rp100** |
+| **Tipe Data** | **Integer**. Tidak ada pecahan atau desimal. Saldo tidak boleh negatif. |
+| **Penyimpanan Data** | Ledger append-only di server pusat Bpedia. `Saldo = SUM(kredit) - SUM(debit)`. Klien dilarang menghitung atau memanipulasi saldo sendiri. |
+| **Penggunaan** | Dapat digunakan sebagai potongan langsung pada saat checkout belanja di aplikasi Bpedia sesuai batas ketentuan program. |
 
-## 3. Tiga modul (ringkasan — detail di PRD modul)
+---
 
-### PRD 1 · Check-in Harian — repo `bpedia-daily-checkin`
-- Setiap check-in harian: **+1 Kelopak** (Rp100).
-- 7 hari berturut-turut tanpa bolong: **bonus +3 Kelopak**. Total 7 hari = 10 Kelopak = **Rp1.000**.
-- 30 hari berturut-turut tanpa bolong ("1 bulan"): **1 produk gratis**.
-- Bolong 1 hari: rentetan mulai lagi dari hari 1. Saldo dan hak produk yang sudah didapat tidak hilang.
-- Hari dihitung WIB (Asia/Jakarta, 00.00) oleh server, bukan jam perangkat.
-- Biaya maksimal per pengguna per 30 hari: 30 + 4×3 = 42 Kelopak (Rp4.200) + 1 produk + ongkir.
+## 3. Rincian Tiga Modul Utama
 
-### PRD 2 · Roda Sabtu (Gacha) — repo `bpedia-roda-sabtu`
-- **1 putaran gratis per akun, hanya hari Sabtu** (Sabtu 00.00 – Minggu 00.00 WIB), selama periode promo aktif.
-- Hadiah: produk gratis (sesuai kuota stok) atau Kelopak.
-- **Sebelum memutar**, pengguna wajib melihat peluang (%) tiap hadiah, sisa kuota, dan ketentuan ongkir.
-- Hasil ditentukan server (RNG server) lalu animasi roda hanya "menampilkan" hasil itu.
-- Tidak ada pembelian putaran. Putaran gratis saja (penting untuk kebijakan Apple §5.3 dan Google Play).
+### PRD 1 · Check-in Harian (Repo: `bpedia-daily-checkin`)
+- **Klaim Harian**: Setiap hari pengguna berhak mengklaim **+1 Kelopak** (= Rp100).
+- **Streak 7 Hari (1 Minggu Tanpa Bolong)**: Mendapatkan **bonus +3 Kelopak**.  
+  *Total perolehan 7 hari berturut-turut: 7 harian + 3 bonus = 10 Kelopak = **Rp1.000**.*
+- **Streak 30 Hari (1 Bulan Tanpa Bolong)**: Mendapatkan **1 Hak Produk Gratis** (*Free Product Voucher/Claim*).
+- **Aturan Reset Rentetan (Streak)**: Jika terlewat 1 hari tanpa check-in, rentetan kembali ke Hari 1. Saldo Kelopak dan hak produk yang telah diperoleh sebelumnya **tidak pernah hangus**.
+- **Waktu Server**: Hari berganti tepat pukul **00.00 WIB** (Asia/Jakarta, UTC+7), ditentukan oleh server, bukan jam lokal perangkat pengguna.
+- **Beban Anggaran Maksimal**: 30 hari berturut-turut per pengguna = 30 harian + 4×3 bonus = 42 Kelopak (Rp4.200) + 1 unit produk promosi + subsidi ongkir.
 
-### PRD 3 · Misi Belanja Bertahap — repo `bpedia-misi-belanja`
-- Tahap 1: selesaikan 1 pesanan **≥ Rp75.000** → voucher **Rp10.000**, berlaku di pesanan berikutnya dengan **min. belanja Rp100.000**.
-- Setelah hadiah tahap 1 terbit, **tahap 2 terbuka**, dan seterusnya (berantai seperti "suf"/level).
-- Contoh tahap 2 (demo, menunggu persetujuan bisnis): pesanan ≥ Rp100.000 → voucher Rp5.000.
-- Hanya pesanan berstatus **selesai** yang dihitung. Batal/retur tidak memberi hadiah.
+### PRD 2 · Roda Sabtu / Gacha Roulette (Repo: `bpedia-roda-sabtu`)
+- **Frekuensi**: Hanya dapat diputar **1 kali seminggu pada hari Sabtu** (Sabtu 00.00 – 23.59.59 WIB) selama periode promosi aktif.
+- **Biaya**: **100% Gratis**. Tidak ada opsi pembelian putaran tambahan dengan uang maupun Kelopak.
+- **Hadiah**:
+  1. **Produk Gratis**: Sesuai kuota stok promosi yang tersedia secara riil.
+  2. **Kelopak**: Hadiah alternatif (misal: 3 Kelopak senilai Rp300).
+- **Transparansi Mutlak (Kepatuhan Toko)**:
+  - Sebelum pengguna dapat menekan tombol putar, antarmuka **wajib menampilkan**:
+    1. Persentase peluang menang (*odds*) tiap hadiah (misal: Produk Gratis 10%, 3 Kelopak 90%).
+    2. Sisa kuota produk promosi yang tersedia secara langsung (*real-time*).
+    3. Ketentuan dan perkiraan ongkir (pada masa promo: Subsidi Ongkir Rp0).
+- **Integritas Putaran (Anti-Kecurangan)**: Hasil putaran ditentukan oleh RNG (Random Number Generator) di sisi server secara atomik. Animasi roda pada klien hanyalah representasi visual yang berhenti pada sektor hasil yang telah ditetapkan server.
 
-## 4. Pengalaman & visual (wajib)
+### PRD 3 · Misi Belanja Bertahap / Suf (Repo: `bpedia-misi-belanja`)
+- **Misi Berantai (*Tiered Missions / Suf*)**:
+  - **Tahap 1**: Selesaikan 1 pesanan dengan subtotal minimal **Rp75.000** → Dapatkan **Voucher Rp10.000**.
+  - **Syarat Penukaran Voucher Tahap 1**: Dapat digunakan pada pesanan berikutnya dengan **minimal belanja Rp100.000**.
+  - **Pembukaan Tahap 2**: Segera setelah voucher Tahap 1 berhasil diterbitkan ke akun, **Tahap 2 otomatis terbuka** (contoh: pesanan selesai ≥ Rp100.000 → voucher Rp5.000 min. belanja Rp100.000).
+- **Validasi Transaksi Ketat**:
+  - Hanya pesanan dengan status **Selesai (*Completed*)** yang dihitung.
+  - Pesanan dalam proses pembayaran, pengiriman, dibatalkan, atau diretur tidak berhak atas reward.
+  - Perhitungan subtotal mengacu pada harga barang sebelum ongkos kirim dan sebelum diskon voucher misi ini.
+  - **Anti-Self-Loop**: Voucher tidak dapat digunakan pada nomor pesanan yang menghasilkan voucher tersebut.
 
-- Palet: latar Pearl, panel Blush `#F9F0EF`, aksen Berry `#982149`, teks Plum. Maskot **Bipy** di area atas (aset di folder induk: `maskot pose hai.png`, `bipy-tas-*.png`).
-- Satu tombol utama per layar. Area sentuh ≥ 48 dp. Teks bisa diperbesar tanpa terpotong.
-- Semua nominal, syarat, dan hasil berupa **teks** yang terbaca pembaca layar. Status tidak bergantung warna.
-- Animasi roda bisa dilewati, dan otomatis disederhanakan jika "kurangi gerakan" aktif. Suara opsional, default mengikuti mode senyap.
-- Setiap aksi punya 4 keadaan yang didesain: memuat, sukses, gagal (dengan tombol coba lagi), sudah diklaim.
-- Anti bug: tombol klaim terkunci selama permintaan berjalan. Setelah putus jaringan, muat ulang status dari server, jangan menebak.
+---
 
-## 5. Arsitektur & sinkron dengan aplikasi Bpedia
+## 4. Pengalaman Visual & Standar Rekayasa (Design & UX)
+
+- **Identitas Visual Resmi Bpedia**:
+  - Latar Belakang: Pearl `#FFFDFD`
+  - Panel & Kartu: Blush `#F9F0EF`, Highlight hari tercapai `#F6CFDA`
+  - Aksen Utama (Tombol & Icon): Berry `#982149`
+  - Tipografi: Plum `#4B1C2E`
+  - Aksen Emas (Hadiah Spesial): Gold `#EAA023`
+  - Maskot: **Bipy** (lebah resmi Bpedia dengan tas ikonik) menyambut di bagian atas aplikasi.
+- **Anti-Bug & Ketahanan Transaksi**:
+  - Tombol aksi otomatis *disabled* dan menampilkan indikator loading saat permintaan sedang diproses untuk mencegah *double-tap*.
+  - Dukungan *Idempotency-Key* di setiap mutasi server: jika koneksi internet terputus saat request dikirim, pengulangan request tidak menduplikasi saldo atau voucher.
+  - State pemulihan otomatis: Klien memuat ulang data resmi dari server saat aplikasi kembali dari background.
+- **Aksesibilitas (A11y)**:
+  - Target sentuh minimal **48 × 48 dp**.
+  - Dukungan penuh pembaca layar (`Semantics` TalkBack di Android dan VoiceOver di iOS).
+  - Mendukung preferensi sistem **Reduce Motion**: Animasi putaran roulette dapat dilewati atau ditiadakan secara otomatis.
+
+---
+
+## 5. Arsitektur Sinkronisasi Lintas Platform (Android, iOS, Web)
 
 ```
-Aplikasi Bpedia (Flutter, Play Store + App Store)
-   └── menu "Hadiah" ──► paket Flutter: daily_checkin, roda_sabtu, misi_belanja
-                         (git dependency dari 3 repo modul)
-Web (Hostinger)       ──► build web dari bpedia-kelopak-hub (hub + 3 modul)
-                              │
-                              ▼
-                     API Hadiah Bpedia (satu backend, satu akun)
-                     ├── ledger Kelopak
-                     ├── klaim check-in / putaran / misi
-                     ├── voucher (dipakai checkout Bpedia)
-                     └── event pesanan selesai (dari order service Bpedia)
+┌────────────────────────────────────────────────────────────────────────┐
+│                        APLIKASI BPEDIA PUSAT                           │
+│     (Tersedia di Google Play Store, Apple App Store, dan Web)          │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+      ┌────────────────────────────┴─────────────────────────────┐
+      ▼                                                          ▼
+[Opsi 1: Rekomendasi Utama]                                [Opsi 2: Webview Staging]
+Integrasi Paket Flutter Modular                            In-App WebView ke Hostinger
+- pubspec.yaml: daily_checkin, roda_sabtu, misi_belanja    - URL: https://kelopak.gamysuf.fun
+- Native rendering, performa 60 FPS, offline cache UI      - Cepat diuji coba di tahap staging
+                                   │
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        API HADIAH BPEDIA PUSAT                         │
+│                    (Single Source of Truth, JWT Auth)                  │
+├────────────────────────────────────────────────────────────────────────┤
+│ • Ledger Kelopak Terpusat (+1 harian, +3 bonus mingguan, klaim roda)   │
+│ • State Synchronizer (Streak harian, status putaran Sabtu)             │
+│ • Dompet Voucher (Voucher belanja Rp10.000 aktif lintas perangkat)     │
+│ • Order Webhook Consumer (Mendeteksi pesanan selesai ≥ Rp75.000)       │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Prinsip sinkron:** semua state ada di server dan terikat ke **akun Bpedia yang sama**. Check-in dari iPhone langsung terlihat di Android dan web. Klien tidak menyimpan saldo/progres kecuali sebagai cache tampilan.
+**Aturan Sinkronisasi:**
+Semua state terikat pada **ID Akun Pengguna Bpedia**. Pengguna yang check-in melalui iPhone di pagi hari akan langsung melihat status "Sudah check-in hari ini" saat membuka aplikasi melalui ponsel Android atau browser Web di siang hari.
 
-**Integrasi ke APK/IPA Bpedia** (pilih satu, rekomendasi pertama):
-1. **Paket Flutter** — app Bpedia menambah di `pubspec.yaml`:
-   ```yaml
-   daily_checkin:
-     git: { url: https://github.com/yusufmuh/bpedia-daily-checkin.git, ref: v0.1.0 }
-   ```
-   App Bpedia menyuplai token sesi dan base URL API. Paling mulus, tanpa WebView.
-2. **WebView** ke build web di Hostinger — cepat dipasang, tapi pengalaman dan login kurang mulus.
+---
 
-## 6. Kontrak API (v1)
+## 6. Kontrak Antarmuka Pemrograman Aplikasi (API Contracts v1)
 
-Semua `POST`, JSON, header `Authorization: Bearer <token sesi Bpedia>` dan `Idempotency-Key: <uuid>`. Identitas akun diambil dari token, **tidak pernah** dari body.
+Semua endpoint menggunakan protokol `HTTPS POST`, format payload `application/json`, header autentikasi `Authorization: Bearer <token_sesi_bpedia>`, dan header pencegah duplikasi `Idempotency-Key: <uuid>`.
 
-| Endpoint | Body | Respons inti |
+### 1. Ambil State Lengkap: `POST /v1/rewards/state`
+**Respons (200 OK):**
+```json
+{
+  "balance": 10,
+  "streak": 7,
+  "lastDay": 20781,
+  "claimedToday": true,
+  "nextClaimAt": "2026-11-25T00:00:00+07:00",
+  "products": 0,
+  "spin": {
+    "available": false,
+    "spun": true,
+    "lastResult": "3 Kelopak",
+    "remainingStock": 1
+  },
+  "missions": [
+    {
+      "stage": 1,
+      "threshold": 75000,
+      "reward": 10000,
+      "minSpend": 100000,
+      "status": "completed"
+    },
+    {
+      "stage": 2,
+      "threshold": 100000,
+      "reward": 5000,
+      "minSpend": 100000,
+      "status": "active"
+    }
+  ],
+  "vouchers": [
+    {
+      "id": "vch-001",
+      "amount": 10000,
+      "minimum": 100000,
+      "isUsed": false
+    }
+  ]
+}
+```
+
+### 2. Klaim Check-in Harian: `POST /v1/checkin/claim`
+**Respons (200 OK):**
+```json
+{
+  "receiptId": "chk-9a8f2",
+  "awarded": 4,
+  "isBonus": true,
+  "streak": 7,
+  "newBalance": 10,
+  "productEntitled": false
+}
+```
+
+### 3. Putar Roda Sabtu: `POST /v1/spin/commit`
+**Payload:**
+```json
+{ "configVersion": "2026-w47" }
+```
+**Respons (200 OK):**
+```json
+{
+  "receiptId": "spn-77c1b",
+  "prizeType": "kelopak",
+  "prizeLabel": "3 Kelopak",
+  "awardedAmount": 3,
+  "newBalance": 13
+}
+```
+
+### 4. Webhook Pesanan Selesai: `POST /v1/orders/completed`
+**Payload (dari Order Service Bpedia ber-signature HMAC):**
+```json
+{
+  "eventId": "evt-88123",
+  "userId": "usr-bpedia-12345",
+  "orderId": "ORD-20261124-001",
+  "completedAt": "2026-11-24T18:30:00+07:00",
+  "eligibleSubtotal": 85000
+}
+```
+
+---
+
+## 7. Ekosistem Multi-Repository
+
+| Repositori GitHub | Fungsi & Komponen | Tautan Kloning |
 |---|---|---|
-| `/v1/rewards/state` | `{}` | `balance, streak, lastDay, nextClaimAt, products[], spin{}, missions[], vouchers[]` |
-| `/v1/checkin/claim` | `{}` | `receiptId, awarded, bonus, streak, balance, productEntitlement?` |
-| `/v1/spin/terms` | `{}` | `configVersion, opensAt, closesAt, prizes[{id,label,probability,quota}], shipping` |
-| `/v1/spin/commit` | `{configVersion}` | `receiptId, prize, balance` atau `409 odds_changed` |
-| `/v1/missions/state` | `{}` | `stages[{stage,threshold,reward,minSpend,status}]` |
-| Webhook `/v1/orders/completed` | dari order service (bertanda tangan) | — |
+| **`bpedia-kelopak-hub`** | Pusat arsitektur, shell aplikasi Flutter terpadu, simulator server PHP, dokumentasi lengkap. | `https://github.com/yusufmuh/bpedia-kelopak-hub.git` |
+| **`bpedia-daily-checkin`** | Paket modul Flutter Check-in Harian + UI 7 hari & progres 30 hari + unit logic checkin. | `https://github.com/yusufmuh/bpedia-daily-checkin.git` |
+| **`bpedia-roda-sabtu`** | Paket modul Flutter Roda Sabtu + UI CustomPainter Dial & Animasi + unit logic RNG spin. | `https://github.com/yusufmuh/bpedia-roda-sabtu.git` |
+| **`bpedia-misi-belanja`** | Paket modul Flutter Misi Belanja + UI Kartu Bertingkat (suf) + verifikasi pesanan. | `https://github.com/yusufmuh/bpedia-misi-belanja.git` |
 
-Kode galat bersama: `401 unauthenticated`, `409 already_claimed | odds_changed | state_changed`, `422 not_eligible`, `429 rate_limited`, `503 retry_later`.
+---
 
-**Status saat ini:** server di tiap repo (`server/*.php`) adalah **simulator demo** (SQLite, sesi anonim, kalender bisa dimajukan). Bukan backend produksi. Backend produksi dibangun/dipasang oleh tim backend Bpedia mengikuti kontrak di atas.
+## 8. Spesifikasi Hosting & Deployment (Hostinger)
 
-## 7. Repositori
+- **Akun Hosting**: Hostinger Cloud/Shared Environment (`yusuf.consultan@gmail.com`).
+- **Target Domain**: Subdomain `kelopak.gamysuf.fun` atau staging `silent-mediumseagreen-lemur-77.hostingersite.com`.
+- **Runtime Server**: PHP 8.2+ dengan modul `pdo_sqlite` aktif.
+- **Isi Direktori `public_html/`**:
+  - File statis hasil kompilasi `flutter build web --release`.
+  - Folder `server/` berisi `index.php`, `checkin.php`, `spin.php`, dan `missions.php`.
+- **Keamanan Basis Data**: Direktori data demo SQLite disimpan di luar web root publik (`../kelopak-demo-data/demo.sqlite`) dengan hak akses `0700` sehingga data tidak dapat dibaca dari URL browser.
+- **Otomasi Git Hostinger**: Mengaitkan repositori `yusufmuh/bpedia-kelopak-hub` cabang `main` ke fitur Git Deployment di hPanel Hostinger untuk pembaruan otomatis setiap commit baru.
 
-| Repo | Isi | Dipakai oleh |
+---
+
+## 9. Pipeline Aset Generatif Berbasis AI
+
+| Kategori Aset | Alat / Engine AI | Panduan Standar Mutu |
 |---|---|---|
-| `github.com/yusufmuh/bpedia-kelopak-hub` | **Pusat**: PRD ini, MEMORY, GAMBARAN, handoff, app Flutter hub (Android/iOS/web), router PHP demo | Web Hostinger, demo APK |
-| `github.com/yusufmuh/bpedia-daily-checkin` | Paket Flutter + logika server check-in + PRD 1 | Hub & app Bpedia |
-| `github.com/yusufmuh/bpedia-roda-sabtu` | Paket Flutter + logika server roda + PRD 2 | Hub & app Bpedia |
-| `github.com/yusufmuh/bpedia-misi-belanja` | Paket Flutter + logika server misi + PRD 3 | Hub & app Bpedia |
+| **Ikon & Ilustrasi Maskot Bipy** | ComfyUI / Stable Diffusion (`comfyui-game-assets`) | Wajib menggunakan palet warna Blush/Berry, menjaga proporsi Bipy resmi, format WebP transparan ≤ 150 KB. |
+| **Musik Latar (BGM) Looping** | Meta AudioCraft MusicGen (`audiocraft-game-music`) | Musik santai ceria bertema belanja, durasi 15-30 detik dengan transisi looping mulus, default dalam keadaan senyap (*muted by default*). |
+| **Sound Effects (SFX)** | Stability AI Stable Audio (`stable-audio-sfx`) | SFX klik tombol lembut (40ms), SFX putaran roda (mekanikal klik ritmis), dan SFX fanfare perolehan reward (maks. 1.2 detik). Format OGG & M4A (iOS). |
+| **Video Promo / Trailer Mini** | Google Gemini Video / Motion Graphics | Trailer teaser peluncuran program loyalitas Bpedia Kelopak untuk banner carousel aplikasi dan media sosial. |
 
-Orang lain cukup `git clone <link repo>` lalu ikuti `HANDOFF-PENGEMBANG.md`. Perubahan masuk lewat branch + Pull Request ke `main`, bukan push langsung.
+---
 
-## 8. Hosting (Hostinger)
+## 10. Kepatuhan Toko Aplikasi (App Store & Play Store Compliance)
 
-- Akun Hostinger berisi beberapa situs (gamysuf.fun, thrilogic.site, ciptavara.site, dll.). Akses untuk agen AI lewat **Hostinger API/MCP**, bukan login password.
-- Kandidat target demo web: `silent-mediumseagreen-lemur-77.hostingersite.com` (dibuat 24 Nov 2026, saat ini hanya halaman "Segera hadir"). Disarankan memasang subdomain seperti `kelopak.gamysuf.fun` sebelum dibagikan.
-- Isi deploy: hasil `flutter build web` + folder `server/` (router PHP + 3 file logika modul). Data demo SQLite disimpan **di luar** `public_html` (`KELOPAK_DATA_DIR`).
-- Pola yang sudah terbukti di gamysuf.fun: push ke `main` → auto-deploy Git Hostinger. Bisa diterapkan juga di hub.
+1. **Apple App Store Review Guidelines §5.3 (Gaming, Gambling, and Lotteries)**:
+   - Fitur Roda Sabtu bersifat promosi cuma-cuma (*free sweepstakes/promotional spin*). Tidak ada pembelian koin dalam aplikasi (*In-App Purchase*) untuk membeli tiket putaran.
+   - Tabel peluang hadiah dan kuota stok dicantumkan eksplisit sebelum pengguna berpartisipasi.
+   - Syarat & Ketentuan mencantumkan klausul resmi:  
+     > *"Apple Inc. bukan sponsor dan tidak terlibat dengan cara apa pun dalam kegiatan promosi, kontes, atau pembagian hadiah Bpedia Kelopak."*
+2. **Google Play Store Developer Policy**:
+   - Mematuhi pedoman promosi dan hadiah: Penyelenggara resmi adalah PT Bpedia, kriteria kelayakan peserta tertera jelas, dan pemenuhan produk gratis dijamin sesuai stok promosi.
 
-## 9. Pipeline aset (AI generatif)
+---
 
-| Kebutuhan | Alat | Aturan |
-|---|---|---|
-| Ikon, ilustrasi hadiah, latar | ComfyUI (skill `comfyui-game-assets`) | Wajib konsisten dengan Bipy & palet. Ekspor PNG/WebP ≤ 200 KB. |
-| Musik latar loop | AudioCraft MusicGen (`audiocraft-game-music`) | ≤ 30 detik, loop mulus, default **mati** |
-| SFX klik, klaim, putaran | Stable Audio (`stable-audio-sfx`) | ≤ 1 detik, OGG + M4A (iOS) |
-| Video promo | Generator video pilihan tim | Bukan bagian build app |
+## 11. Kriteria Kualitas & Definisi Selesai (Definition of Done)
 
-Semua aset hasil AI dicek manual (lisensi, kemiripan merek lain) sebelum masuk `assets/`.
-
-## 10. Kualitas & definisi selesai
-
-Setiap PR wajib lulus:
-1. `flutter analyze` tanpa peringatan, `flutter test` hijau.
-2. Unit test aturan ekonomi: hari 7 = +4, total 7 hari = 10; hari 30 = hak produk; bolong = reset; Sabtu WIB batas Jumat 23.59/Minggu 00.00; Rp74.999 gagal, Rp75.000 lolos; voucher tidak bisa dipakai di order asal; Rp99.999 gagal tukar.
-3. Uji klaim ganda (dua perangkat serentak) = satu perubahan saldo.
-4. Cek manual di web (Chrome mobile 375 px) tanpa error di console, dan di 1 perangkat Android.
-
-## 11. Rilis bertahap
-
-| Tahap | Isi | Syarat lanjut |
-|---|---|---|
-| 0 · Dokumen | PRD, memory, gambaran, repo (**sekarang**) | Owner setuju PRD |
-| 1 · Demo web | Hub Flutter lengkap 3 modul + simulator PHP di Hostinger | QA §10 lulus |
-| 2 · Integrasi | Paket masuk app Bpedia, backend produksi sesuai §6, staging | Uji lintas perangkat & checkout |
-| 3 · Rilis store | Update Bpedia di Play Store & App Store, aturan promo resmi di dalam app | Review Legal (aturan undian/promosi Indonesia, Apple §5.3) |
-
-## 12. Keputusan yang masih terbuka (owner)
-
-1. "1 bulan" = 30 hari berturut-turut? (asumsi saat ini: ya, berulang tiap kelipatan 30)
-2. SKU produk gratis check-in & roda, kuota per Sabtu, siapa yang menanggung ongkir.
-3. Isi hadiah Kelopak di roda dan peluang masing-masing.
-4. Jumlah tahap Misi Belanja dan hadiahnya setelah tahap 1; masa berlaku voucher.
-5. Cara Kelopak dipakai di checkout (potongan langsung? batas maksimal?) dan masa kedaluwarsa.
-6. Domain demo web final.
-
-## Riwayat
-- 0.2 · 24 Nov 2026 · PRD pusat dibuat; konsolidasi 3 PRD modul, kontrak API, repo, hosting.
-- 0.1 · 24 Nov 2026 · Memory, gambaran, PRD modul.
+Sebelum kode di-merge ke branch `main`:
+1. `flutter analyze` menghasilkan nol error dan nol peringatan (*zero warnings*).
+2. `flutter test` lulus 100% pada seluruh pengujian unit logika:
+   - Klaim hari ke-7 memberikan bonus +3 (total 10 Kelopak = Rp1.000).
+   - Klaim hari ke-30 memberikan 1 hak produk gratis.
+   - Terlewat satu hari mereset streak ke hari ke-1 tanpa menghapus saldo.
+   - Roda hanya dapat diputar pada hari Sabtu WIB.
+   - Pesanan Rp74.999 ditolak dari misi tahap 1; pesanan Rp75.000 menerbitkan voucher Rp10.000.
+   - Voucher Rp10.000 ditolak jika belanja berikutnya di bawah Rp100.000.
+3. Permintaan konkuren ganda (*concurrent requests*) menghasilkan tepat satu mutasi saldo (teruji via header idempotency).
+4. Responsif dan mulus di layar smartphone Android, iPhone, dan Browser Desktop/Mobile.

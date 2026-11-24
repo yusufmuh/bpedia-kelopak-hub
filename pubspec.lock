@@ -41,6 +41,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
+  daily_checkin:
+    dependency: "direct main"
+    description:
+      path: "../bpedia-daily-checkin"
+      relative: true
+    source: path
+    version: "0.1.0"
   fake_async:
     dependency: transitive
     description:
@@ -144,6 +151,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.17.0"
+  misi_belanja:
+    dependency: "direct main"
+    description:
+      path: "../bpedia-misi-belanja"
+      relative: true
+    source: path
+    version: "0.1.0"
   path:
     dependency: transitive
     description:
@@ -192,6 +206,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  roda_sabtu:
+    dependency: "direct main"
+    description:
+      path: "../bpedia-roda-sabtu"
+      relative: true
+    source: path
+    version: "0.1.0"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -334,5 +355,5 @@ packages:
     source: hosted
     version: "1.1.0"
 sdks:
-  dart: ">=3.11.5 <4.0.0"
+  dart: ">=3.11.0 <4.0.0"
   flutter: ">=3.38.0"

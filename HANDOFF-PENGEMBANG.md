@@ -1,67 +1,175 @@
-# Handoff Pengembang · Bpedia Kelopak
+# Panduan Handoff Pengembang · Bpedia Kelopak
 
-File ini boleh dibagikan ke pengembang lain (manusia atau AI). Tidak berisi password atau token.
+Dokumen ini ditujukan untuk **pengembang manusia dan agen AI (Claude, Antigravity, Codex)** yang akan melanjutkan pengembangan, pemeliharaan, atau integrasi Bpedia Kelopak.  
+Dokumen ini **tidak mengandung rahasia, token privat, maupun kata sandi**.
 
-## Mulai dalam 5 menit
+---
+
+## 1. Memulai Cepat (5 Menit)
+
+Kloning keempat repositori ke dalam satu folder kerja bersama (bersebelahan):
 
 ```bash
-mkdir bpedia-kelopak && cd bpedia-kelopak
+mkdir bpedia-workspace && cd bpedia-workspace
+
+# 1. Repositori Pusat & Hub Shell
 git clone https://github.com/yusufmuh/bpedia-kelopak-hub.git
+
+# 2. Modul PRD 1: Check-in Harian
 git clone https://github.com/yusufmuh/bpedia-daily-checkin.git
+
+# 3. Modul PRD 2: Roda Sabtu (Gacha)
 git clone https://github.com/yusufmuh/bpedia-roda-sabtu.git
+
+# 4. Modul PRD 3: Misi Belanja Bertahap (Suf)
 git clone https://github.com/yusufmuh/bpedia-misi-belanja.git
 ```
 
-Keempat folder harus **bersebelahan** (hub merujuk modul lewat path `../bpedia-*` saat pengembangan lokal).
+> **Catatan Struktur Folder:**  
+> Keempat folder di atas harus berada dalam **direktori yang sama** (bersebelahan). Saat pengembangan lokal, `bpedia-kelopak-hub` mereferensikan ketiga modul via path relatif `../bpedia-*`.
 
-Baca dulu, berurutan:
-1. `bpedia-kelopak-hub/PRD.md` — PRD pusat (aturan lintas fitur)
-2. `bpedia-kelopak-hub/MEMORY.md` — keputusan owner & asumsi
-3. `bpedia-kelopak-hub/GAMBARAN.md` — alur & visual
-4. `PRD.md` di repo modul yang akan dikerjakan
+---
 
-## Kebutuhan alat
+## 2. Kebutuhan Lingkungan Pengembangan
 
-| Alat | Versi |
-|---|---|
-| Flutter | 3.41 stable (Dart ≥ 3.11) |
-| PHP | 8.2+ dengan `pdo_sqlite` (untuk simulator demo) |
-| Android Studio / Xcode | Untuk build APK / iOS |
+| Perangkat Lunak | Versi Minimal | Fungsi |
+|---|---|---|
+| **Flutter SDK** | 3.41+ (Dart ≥ 3.11) | Framework antarmuka cross-platform (Android, iOS, Web). |
+| **PHP** | 8.2+ dengan modul `pdo_sqlite` | Menjalankan simulator API backend demo lokal. |
+| **Android Studio / Xcode** | Versi terbaru | Build native untuk target Android (APK/AAB) dan iOS (IPA). |
+| **Git** | 2.40+ | Manajemen versi kode sumber multi-repo. |
 
-## Menjalankan
+---
 
+## 3. Menjalankan Proyek Secara Lokal
+
+### Langkah 1: Menjalankan Simulator API Backend Demo
+Buka terminal pertama:
+```bash
+cd bpedia-kelopak-hub
+php -S localhost:8080 -t server
+```
+*Server demo akan berjalan di `http://localhost:8080` dan secara otomatis membuat database SQLite lokal di folder `../kelopak-demo-data/demo.sqlite`.*
+
+### Langkah 2: Menjalankan Aplikasi Flutter Hub
+Buka terminal kedua:
 ```bash
 cd bpedia-kelopak-hub
 flutter pub get
-flutter run -d chrome          # web
-flutter run -d <android-id>    # Android
-php -S localhost:8080 -t server  # simulator API demo (terminal lain)
+
+# Jalankan pada browser Chrome (Web):
+flutter run -d chrome
+
+# Atau jalankan pada emulator Android:
+flutter run -d android
 ```
 
-Simulator butuh file logika modul di `server/` hub: salin `checkin.php`, `spin.php`, `missions.php` dari folder `server/` masing-masing repo modul. Data demo ditulis ke `KELOPAK_DATA_DIR` (default: dua folder di atas `server/`).
+---
 
-## Cara kerja tim
+## 4. Cara Integrasi ke Aplikasi Utama Bpedia (Play Store & App Store)
 
-1. Buat branch: `git checkout -b fitur/<nama-singkat>`.
-2. Ubah aturan lintas fitur? Update `PRD.md` + `MEMORY.md` di hub **dulu**, cantumkan tanggal & siapa yang menyetujui.
-3. Ubah satu fitur? Update PRD modul + test di repo modul itu.
-4. Sebelum PR: `flutter analyze` bersih dan `flutter test` hijau (lihat §10 PRD pusat).
-5. Buka Pull Request ke `main`. Jangan push langsung ke `main`.
-6. Rilis modul diberi tag `vX.Y.Z` agar app Bpedia bisa mengunci versi.
+Terdapat dua opsi integrasi ke dalam aplikasi Flutter utama Bpedia:
 
-## Aturan yang tidak boleh dilanggar
+### Opsi A: Integrasi Paket Flutter Modular (Sangat Direkomendasikan)
+Aplikasi utama Bpedia cukup menambahkan dependensi git modul ke dalam `pubspec.yaml`:
 
-- Saldo, streak, hasil roda, dan voucher **ditentukan server**. Klien hanya menampilkan.
-- Hari = WIB dari server. Jangan pakai jam perangkat untuk keputusan.
-- Setiap klaim memakai `Idempotency-Key`. Klaim ganda = satu hasil.
-- Peluang roda wajib tampil sebelum tombol putar aktif.
-- Jangan commit secret (`.env`, keystore, token, password). Kredensial disimpan di luar repo.
-- Nilai yang belum disetujui owner ditandai **Demo** di UI.
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Modul Check-in Harian
+  daily_checkin:
+    git:
+      url: https://github.com/yusufmuh/bpedia-daily-checkin.git
+      ref: v1.0.0
 
-## Untuk agen AI (Claude, Codex, Antigravity)
+  # Modul Roda Sabtu
+  roda_sabtu:
+    git:
+      url: https://github.com/yusufmuh/bpedia-roda-sabtu.git
+      ref: v1.0.0
 
-Setiap repo punya `AGENTS.md` (Codex & Antigravity), `CLAUDE.md` (Claude), dan `GEMINI.md` (Antigravity) yang semuanya menunjuk ke `PRD.md` pusat di hub. Saat berhenti bekerja, tulis status singkat di bagian **Riwayat** PRD terkait.
+  # Modul Misi Belanja
+  misi_belanja:
+    git:
+      url: https://github.com/yusufmuh/bpedia-misi-belanja.git
+      ref: v1.0.0
+```
 
-## Kontak
+**Kelebihan Opsi A:**
+- Rendering 100% native (60/120 FPS tanpa jeda WebView).
+- State terintegrasi langsung dengan state manager aplikasi Bpedia (Bloc/Provider/Riverpod).
+- Token autentikasi dan base URL di-inject langsung melalui constructor modul.
 
-Owner produk: Muhammad Yusuf (Bpedia).
+### Opsi B: In-App WebView ke Hostinger
+Jika tim merilis secara bertahap tanpa perlu menunggu review Play Store / App Store untuk setiap update promo:
+1. Deploy build web ke Hostinger (`https://kelopak.gamysuf.fun`).
+2. Tampilkan di dalam tab Hadiah aplikasi Bpedia menggunakan paket `webview_flutter`.
+3. Kirim sesi user melalui cookie aman atau header HTTP authorization.
+
+---
+
+## 5. Panduan Deployment ke Hostinger
+
+1. **Build Web Flutter**:
+   ```bash
+   cd bpedia-kelopak-hub
+   flutter build web --release
+   ```
+2. **Struktur Direktori di Hostinger (`public_html`)**:
+   - Salin seluruh isi folder `build/web/` langsung ke `public_html/`.
+   - Salin folder `server/` ke `public_html/server/`.
+   - Pastikan file `.htaccess` mendukung routing SPA Flutter:
+     ```apache
+     <IfModule mod_rewrite.c>
+       RewriteEngine On
+       RewriteBase /
+       RewriteRule ^index\.html$ - [L]
+       RewriteCond %{REQUEST_FILENAME} !-f
+       RewriteCond %{REQUEST_FILENAME} !-d
+       RewriteRule . /index.html [L]
+     </IfModule>
+     ```
+3. **Penyimpanan Database SQLite**:
+   - Skrip PHP otomatis mendeteksi dan menulis database demo ke folder di luar root web (`dirname(__DIR__, 2) . '/kelopak-demo-data'`).
+   - Direktori ini terlindung dari akses langsung URL browser.
+4. **Otomasi Git Hostinger**:
+   - Di hPanel Hostinger: Buka menu **Git**.
+   - Masukkan URL Repository: `https://github.com/yusufmuh/bpedia-kelopak-hub.git`.
+   - Cabang (*Branch*): `main`.
+   - Pasang Webhook Auto-Deploy dari GitHub settings agar setiap push langsung memperbarui web.
+
+---
+
+## 6. Checklist Kepatuhan App Store & Google Play
+
+Sebelum mengajukan rilis update aplikasi Bpedia ke Apple App Store & Google Play:
+- [x] **Apple Guideline §5.3**: Roda Sabtu **100% gratis**, tanpa opsi pembelian putaran dengan uang nyata.
+- [x] **Transparansi Odds**: Peluang menang numerik (%) dan sisa kuota produk ditampilkan sebelum tombol putar aktif.
+- [x] **Disclaimer Wajib**: Teks *"Apple bukan sponsor promosi ini"* dicantumkan pada syarat & ketentuan dalam aplikasi.
+- [x] **Aksesibilitas**: Tombol berukuran minimal 48 dp, teks kontras tinggi, mendukung screen reader.
+- [x] **Anti-Duplikasi**: Request mutasi saldo menyertakan `Idempotency-Key` untuk mencegah klaim ganda saat jaringan tidak stabil.
+
+---
+
+## 7. Pengujian & Verifikasi Mutu
+
+Sebelum membuat Pull Request atau merilis tag versi baru:
+```bash
+# 1. Jalankan static analysis (wajib nol peringatan)
+flutter analyze
+
+# 2. Jalankan seluruh unit test
+flutter test
+```
+
+Setiap modul memiliki test case lengkap yang menguji aturan ekonomi (hari ke-7 = +4 Kelopak, hari ke-30 = hak produk gratis, validasi ambang belanja Rp75.000, batas penukaran voucher Rp100.000).
+
+---
+
+## 8. Kontak & Kepemilikan
+
+- **Pemilik Produk (Product Owner)**: Muhammad Yusuf (Bpedia)
+- **Akun GitHub Resmi**: `yusufmuh`
+- **Pusat Dokumentasi**: `bpedia-kelopak-hub/PRD.md`
