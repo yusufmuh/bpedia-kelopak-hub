@@ -136,6 +136,7 @@ class KelopakGameStrip extends StatelessWidget {
                                       Expanded(
                                         child: _MiniGameCard(
                                           status: statuses[i],
+                                          guest: !c.isLoggedIn,
                                         ),
                                       ),
                                     ],
@@ -159,9 +160,12 @@ class KelopakGameStrip extends StatelessWidget {
 }
 
 class _MiniGameCard extends StatelessWidget {
-  const _MiniGameCard({required this.status});
+  const _MiniGameCard({required this.status, required this.guest});
 
   final KelopakGameStatus status;
+
+  /// Tamu belum pernah klaim: jangan tulis "Sudah klaim".
+  final bool guest;
 
   static String _shortTitle(KelopakGame game) => switch (game) {
     KelopakGame.checkIn => 'Check-in',
@@ -172,6 +176,7 @@ class _MiniGameCard extends StatelessWidget {
   String get _line {
     switch (status.game) {
       case KelopakGame.checkIn:
+        if (guest) return '+1 tiap hari';
         return status.ready ? 'Klaim +1' : 'Sudah klaim';
       case KelopakGame.wheel:
         return status.ready ? 'Putar sekarang' : status.headline;

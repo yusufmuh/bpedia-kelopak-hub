@@ -128,7 +128,7 @@ class _Cell extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 56),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -138,7 +138,7 @@ class _Cell extends StatelessWidget {
                   Stack(
                     clipBehavior: Clip.none,
                     children: <Widget>[
-                      Image(image: art, width: 24, height: 24),
+                      Image(image: art, width: 20, height: 20),
                       if (dot)
                         const PositionedDirectional(
                           top: -3,
@@ -147,7 +147,7 @@ class _Cell extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       value,
