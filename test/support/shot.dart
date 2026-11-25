@@ -79,7 +79,7 @@ Future<void> _loadFonts() async {
       if (files.isEmpty) continue;
       final loader = FontLoader(family);
       for (final file in files) {
-        loader.addFont(file.readAsBytes().then((bytes) => ByteData.sublistView(bytes)));
+        loader.addFont(file.readAsBytes().then(ByteData.sublistView));
       }
       await loader.load();
       loaded.add(family);
@@ -92,7 +92,7 @@ Future<void> _loadFonts() async {
       final icons = File('$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
       if (icons.existsSync()) {
         final loader = FontLoader('MaterialIcons')
-          ..addFont(icons.readAsBytes().then((bytes) => ByteData.sublistView(bytes)));
+          ..addFont(icons.readAsBytes().then(ByteData.sublistView));
         await loader.load();
       }
     }
