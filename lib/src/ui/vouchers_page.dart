@@ -127,13 +127,9 @@ class _VoucherList extends StatelessWidget {
               message: usableTab
                   ? 'Selesaikan Misi Belanja untuk dapat voucher belanja.'
                   : 'Voucher yang sudah dipakai atau berakhir tampil di sini.',
-              actionLabel: usableTab ? 'Lihat Misi Belanja' : null,
-              onAction: usableTab
-                  ? () => KelopakNavigation.openPath(
-                      context,
-                      KelopakPaths.mission,
-                    )
-                  : null,
+              actionLabel: 'Lihat Misi Belanja',
+              onAction: () =>
+                  KelopakNavigation.openPath(context, KelopakPaths.mission),
             ),
           )
         else

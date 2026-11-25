@@ -1,108 +1,125 @@
-# Kontrak Implementasi v2 · Bpedia Preview (clean-room) + 3 Modul Kelopak
+# Kontrak Data dan API v3 · kelopak_hub (Bpedia Demo v3)
 
-Dokumen kerja untuk agen implementasi. Bahasa UI: Indonesia. Bahasa kode/identifier: Inggris. Tanpa placeholder/TODO.
+Dokumen ini mengikat bentuk data, API Dart publik, dan API backend sistem Kelopak. Aturan bisnis lengkap: `bpedia-asset-build/v3/KEPUTUSAN-V3.md`. Tampilan: `SPEC-V3.md` §5. Bila kode dan dokumen ini berbeda, kode di `lib/src/` yang benar dan dokumen ini harus diperbaiki.
 
-## 0. Batas
+## 0. Batas paket
 
-- Aplikasi dibangun ulang dari nol (clean-room) memakai brand guideline resmi dan screenshot milik owner sebagai referensi UX. Tidak memakai kode/aset dari APK produksi.
-- applicationId Android: `id.bpedia.preview` · label: `Bpedia Demo` (§4; "Bpedia Preview" = nama teknis proyek) · iOS bundle: `id.bpedia.preview`. Tidak bentrok dengan app produksi.
-- Semua data adalah **Mode Demo** (engine lokal di perangkat, persist di shared_preferences). Tidak ada login/backend nyata. Label "Demo" tampil pada nilai yang belum disetujui bisnis.
-- Teks UI tidak memakai glyph `≥ → ✓` (font Poppins subset tidak punya). Pakai kata ("min.") atau ikon.
+- `kelopak_hub` hanya bergantung pada Flutter SDK + `daily_checkin`, `roda_sabtu`, `misi_belanja` (path). Tanpa plugin, tanpa HTTP.
+- Aplikasi induk (`bpedia_app`) menyediakan login, katalog, keranjang, suara, analitik, notifikasi lewat `KelopakHost` (+ `KelopakGameActions` opsional) dan menyuntikkan `KelopakBackend`.
+- Semua hari adalah **hari WIB** (bilangan bulat: hari sejak 1 Jan 1970 pada UTC+7). Uang dalam rupiah bulat. 1 Kelopak = `KelopakPolicy.rupiahPerKelopak` (demo Rp100).
 
-## 1. Aturan bisnis (wajib persis)
+## 1. Aturan yang dijalankan mesin (`KelopakEngine`)
 
-| Fitur | Aturan |
+| Area | Aturan |
 |---|---|
-| Kelopak | 1 Kelopak = Rp100. Integer, saldo tidak pernah negatif. Saldo = jumlah ledger. |
-| Check-in | +1 Kelopak per tanggal WIB (UTC+7), satu kali per tanggal. Setiap hari ke-7, 14, 21, … beruntun: +3 bonus (total 7 hari = 10 Kelopak = Rp1.000). Setiap hari ke-30, 60, … beruntun: 1 hak produk gratis. Bolong 1 tanggal = rentetan mulai dari 1 lagi; saldo & hak tidak hilang. |
-| Roda Sabtu | Gratis, 1 putaran per akun per Sabtu WIB (00.00–23.59) saat promo aktif. Hadiah: produk (sesuai stok) atau Kelopak. Peluang (%) + sisa kuota + ketentuan ongkir tampil SEBELUM tombol putar. Hasil ditentukan engine (bukan animasi). Demo: produk 10% (stok 1), 3 Kelopak 90%; stok 0 → produk 0%, Kelopak 100%. |
-| Misi Belanja | Tahap 1: pesanan SELESAI dengan subtotal barang min. Rp75.000 → voucher Rp10.000, berlaku untuk pesanan LAIN berikutnya dengan min. belanja Rp100.000. Setelah voucher tahap N terbit, tahap N+1 terbuka. Demo tahap 2: selesai min. Rp100.000 → voucher Rp5.000 (min. Rp100.000). Sesudah tahap terakhir: "Tahap berikutnya menunggu kampanye". Satu pesanan hanya dihitung sekali. Voucher berlaku 30 hari (Demo). |
-| Pakai Kelopak (Demo) | Di checkout bisa dipakai sebagai potongan, maks. 50% dari total setelah voucher (Demo, menunggu keputusan bisnis), dibatasi saldo. Tercatat sebagai debit ledger. Semua teks memakai satu kalimat: "Maks. 50% dari total setelah voucher (Demo)" (`kelopakCapRule`). |
+| Check-in Harian | +1 Kelopak per hari WIB; hari ke-7, 14, ... beruntun +3; hari ke-30, 60, ... = 1 hadiah produk (`GiftSource.checkIn30`). Lewat sehari, rentetan mulai dari 1. |
+| Roda Sabtu | 1 putaran per Sabtu WIB selama `promoActive`; undian 0..9999 di backend; hadiah produk memakai kuota (`wheelQuota`, isi ulang tiap Senin bila `wheelQuotaRefillsWeekly`); kuota habis: bobot produk pindah ke `SpinConfig.fallbackPrizeId`. Nilai peluang = (demo). |
+| Misi Belanja | Tahap berurutan; dihitung **subtotal produk misi** (`MissionStage.productCodes`, kosong = semua) dari satu pesanan yang **diterima**; satu pesanan menyelesaikan satu tahap; pesanan batal tidak dihitung. Tahap selesai menerbitkan voucher misi. |
+| Kutipan checkout (K16) | Urutan: subtotal barang → voucher (cek min. belanja pada subtotal sebelum Kelopak) → Kelopak (maks. `redeemShareBp` dari harga barang setelah voucher, dibulatkan ke bawah per Kelopak, tidak melebihi saldo) → + ongkir. Total tidak pernah negatif. Pecahan < Rp100 tetap dibayar. |
+| Hadiah menunggu (K17) | Produk gratis berstatus `pending` sampai ada pesanan dengan minimal 1 barang berbayar; saat komit menjadi `attached`, lalu `shipped`, `received`. Batal mengembalikan ke `pending`. |
+| Batal | Kelopak (`checkoutRefund`), voucher (dilepas), dan hadiah kembali. |
 
-Hari WIB: `wibDay = (utcMillis + 7*3600*1000) ~/ 86400000`. Weekday (1=Senin..7=Minggu): `((wibDay + 3) % 7) + 1` (hari 0 = Kamis 1 Jan 1970). Sabtu: `((wibDay + 3) % 7) + 1 == 6`. Tanggal kalender WIB: `DateTime.utc(1970,1,1).add(Duration(days: wibDay))`.
+## 2. Model data (JSON, `KelopakState.toJson()`)
 
-## 2. API publik modul (signature tetap; hub memakai ini)
+Dokumen tersimpan: kunci `bpedia_kelopak_v3`, skema `1`, berisi `{schema, revision, state}`. Migrasi sekali jalan dari `bpedia_preview_state_v1` (v2) lewat `migrateV2`.
 
-### daily_checkin (`package:daily_checkin/daily_checkin.dart`)
-```dart
-abstract final class CheckInRules { static const int dailyKelopak = 1; static const int bonusEvery = 7; static const int bonusKelopak = 3; static const int productEvery = 30; }
-int wibDayOf(DateTime instant);
-int wibWeekdayOf(int wibDay);            // 1..7
-DateTime wibDateOf(int wibDay);          // UTC DateTime = tanggal kalender WIB
-final class CheckInAward { const CheckInAward({required this.streak, required this.dailyKelopak, required this.bonusKelopak, required this.productEntitled}); final int streak; final int dailyKelopak; final int bonusKelopak; final bool productEntitled; int get totalKelopak; }
-CheckInAward? evaluateCheckIn({required int today, required int? lastClaimDay, required int streak}); // null jika today <= lastClaimDay
-int liveStreak({required int today, required int? lastClaimDay, required int streak}); // 0 jika rentetan putus (last < today-1)
-bool isClaimedOn({required int today, required int? lastClaimDay});
-int filledInWeek({required int liveStreak, required bool claimedToday});   // 0..7
-int dayInMonthCycle({required int liveStreak, required bool claimedToday}); // 0..30
-enum CheckInButtonState { ready, claimed }
-class CheckInWeekTrack extends StatelessWidget   // 7 slot, slot 7 = hadiah bonus +3; slot "Hari ini" disorot; Semantics per slot
-  ({required int filled, required bool claimedToday, required Widget currencyIcon, Widget? bonusIcon})
-class CheckInMonthProgress extends StatelessWidget // progres 0..30 + penanda 7/14/21/28 + hadiah di 30
-  ({required int day, Widget? rewardImage})
-class CheckInClaimButton extends StatelessWidget
-  ({required CheckInButtonState state, required VoidCallback? onPressed, required String claimedHint})
+```json
+{
+  "ledger": [{"id": "L000001", "wibDay": 20783, "amount": 1, "kind": "checkIn", "note": "Check-in hari ke-1", "orderId": null}],
+  "streak": 31, "lastClaimDay": 20782,
+  "gifts": [{"id": "HG-0001", "source": "checkIn30|wheel", "wonDay": 20781, "productCode": "P39A06S01000089", "status": "pending|attached|shipped|received", "orderId": null}],
+  "spins": [{"wibDay": 20771, "prizeId": "kelopak-3", "roll": 4210, "landingSeed": 17, "configVersion": "...", "productStockBefore": 3, "giftId": null}],
+  "promoActive": true, "wheelQuotaUsed": 1, "wheelQuotaWeek": 2969,
+  "missionIssuedCount": 1, "countedOrderIds": ["BP-261120-0001"],
+  "vouchers": [{"id": "V-0001", "kind": "mission|promo", "title": "...", "amount": 10000, "minSpend": 100000, "issuedDay": 20777, "expiresDay": 20807, "stageNumber": 1, "sourceOrderId": "BP-...", "promoId": null, "usedOnOrderId": null}],
+  "orders": [{"id": "BP-...", "placedDay": 20777, "lines": [{"productCode": "...", "unitPrice": 26000, "quantity": 2}], "goodsSubtotal": 76800, "shippingFee": 12000, "voucherId": null, "voucherAmount": 0, "kelopakUsed": 0, "kelopakValue": 0, "giftIds": [], "total": 88800, "quoteToken": "...", "status": "placed|shipped|completed|cancelled", "closedDay": null}],
+  "ledgerSeq": 48, "giftSeq": 2, "voucherSeq": 2
+}
 ```
 
-### roda_sabtu (`package:roda_sabtu/roda_sabtu.dart`)
+`LedgerKind`: `checkIn`, `checkInBonus`, `spinPrize`, `checkoutSpend` (negatif), `checkoutRefund`, `demoGrant`. Saldo = jumlah `amount` dan tidak pernah negatif.
+
+## 3. API backend (`KelopakBackend`)
+
+Antarmuka asinkron; setiap aksi membalas `KelopakReply<T>{state, value}` sehingga UI selalu memakai keadaan terbaru dari server.
+
+| Implementasi | Pakai |
+|---|---|
+| `LocalKelopakBackend(store: KeyValueStore, campaign:, random:)` | Demo dan offline; menulis dokumen ber-`revision`; punya `KelopakDemoTools` (promo, kuota, isi saldo, atur ulang). |
+| `RemoteKelopakBackend(transport: KelopakTransport, campaign:)` | Server otoritatif; host menyuntikkan `KelopakTransport.send(action, body)` (HTTP + token sesi milik app). |
+
+Endpoint yang disarankan (`KelopakAction`), semua membalas `{"state": {...}, "result": {...}}`:
+
+| Aksi | Endpoint | Isi permintaan | `result` |
+|---|---|---|---|
+| `read` | `GET /kelopak/state` | - | - |
+| `checkIn` | `POST /kelopak/check-in` | `today` | `claimed`, `streak`, `dailyKelopak`, `bonusKelopak`, `productEntitled`, `giftId` |
+| `spin` | `POST /kelopak/wheel/spin` | `today` | `spun`, `wibDay` atau `reason` |
+| `claimPromo` | `POST /kelopak/vouchers/promo` | `promoId`, `amount`, `minSpend`, `validDays`, `title`, `today` | `claimed`, `voucherId` atau `problem` |
+| `commit` | `POST /kelopak/orders/commit` | `orderId`, `request` (`CheckoutRequest`), `token`, `today` | `committed`, `orderId` atau `problem` |
+| `cancel` | `POST /kelopak/orders/cancel` | `orderId`, `today` | `cancelled`, `kelopakRefunded`, `voucherId`, `giftIds` |
+| `ship` | `POST /kelopak/orders/ship` | `orderId` | `shipped`, `orderId` |
+| `complete` | `POST /kelopak/orders/complete` | `orderId`, `today` | `completed`, `issuedStage`, `rejection`, `voucherId`, `giftIds` |
+
+Ketentuan server: mengundi roda sendiri; menghitung ulang kutipan dari `request` dan menolak dengan `quoteOutdated` bila `token` tidak cocok; komit ulang dengan token sama idempoten, token beda untuk ID sama = `duplicateOrder`; `today` hanya petunjuk demo (produksi memakai jam WIB server). Simulator PHP v2 ada di `server/`; aksi pesanan v3 belum dibuat di PHP (BACKLOG-V3).
+
+## 4. API Dart untuk host
+
+Impor: `package:kelopak_hub/kelopak_hub.dart` (di `bpedia_app` dengan `hide CheckoutQuote, CheckoutRequest, v2DocumentKey`) dan `package:kelopak_hub/kit.dart` (kit pesta + `BipySprite`).
+
+### 4.1 Inti
+
+- `KelopakController.open(backend:, clock: WibClock(), host:, watchDayChange:)`; `KelopakScope(controller:, child:)`; `KelopakScope.of/read/maybeRead`.
+- Baca: `balance`, `ledgerHistory`, `claimedToday`, `liveStreak`, `checkInMonthDay`, `spinEligibility`, `spinOdds`, `wheelQuotaLeft`, `nextWheelOpening`, `activeMissionStage`, `missionProductCodes`, `cartMissionProgress`, `activeVouchers`, `vouchers`, `pendingGifts`, `gifts`, `view` (`KelopakView`).
+- Aksi: `claimCheckIn()`, `spin()`, `claimPromoVoucher(...)`, `quote(CheckoutRequest)`, `problemWith(quote)`, `commitOrder(id, quote)`, `cancelOrder(id)`, `shipOrder(id)`, `completeOrder(id)`; Mode Demo: `setPromoActive`, `setWheelQuotaLeft`, `refillWheelQuota`, `grantKelopak`, `resetAll`; hari: `clock.demoOffsetDays` + `refreshDay()`.
+- Peristiwa: `events` (stream sinkron) dan `KelopakHost.onEvent`: `CheckInClaimedEvent`, `WheelSpunEvent`, `PromoVoucherClaimedEvent`, `VoucherRedeemedEvent`, `KelopakRedeemedEvent`, `GiftAttachedEvent`, `OrderRefundedEvent`, `GiftsShippedEvent`, `GiftsReceivedEvent`, `MissionCompletedEvent` (masing-masing `analyticsName`, `parameters`, `notice`).
+
+### 4.2 Host
+
 ```dart
-bool isSaturdayWib(int wibDay);
-int daysUntilSaturday(int wibDay);       // 0 jika Sabtu
-enum PrizeKind { product, kelopak }
-final class SpinPrize { const SpinPrize({required this.id, required this.kind, required this.label, required this.kelopak, required this.weight}); final String id; final PrizeKind kind; final String label; final int kelopak; final int weight; } // weight basis poin, total 10000
-final class SpinConfig { const SpinConfig({required this.version, required this.prizes, required this.shippingNote}); ... }
-const SpinConfig demoSpinConfig;         // 'demo-2026-11': produk 1000, 3 Kelopak 9000, ongkir: "Gratis ongkir (Demo)"
-final class SpinOdds { final SpinPrize prize; final int weight; double get percent; }
-List<SpinOdds> effectiveOdds(SpinConfig config, {required int productStock}); // stok 0 → produk 0, sisa dibagi proporsional ke Kelopak; total selalu 10000
-SpinPrize resolveSpin(SpinConfig config, {required int productStock, required int roll}); // roll 0..9999 (assert)
-enum SpinEligibility { available, alreadySpun, notSaturday, promoInactive }
-SpinEligibility spinEligibility({required int today, required int? lastSpinDay, required bool promoActive});
-class SaturdayWheel extends StatefulWidget  // segmen proporsional peluang; jarum di atas; animasi ease-out ~4 dtk ke segmen hasil; reduce motion = langsung
-  ({required List<SpinOdds> odds, required String? resultPrizeId, required int spinToken, required int landingSeed, VoidCallback? onSettled, VoidCallback? onPegPassed, Widget? centerChild, String? idleSemanticsValue})
-  // idleSemanticsValue (tambahan v2, opsional): nilai Semantics saat belum ada hasil; host mengisi "Siap diputar" hanya bila putaran tersedia
-class OddsTable extends StatelessWidget ({required List<SpinOdds> odds, required int productStock, required String shippingNote})
+abstract class KelopakHost {
+  bool get isLoggedIn;
+  Listenable? get changes;            // login/keranjang berubah
+  void openLogin(); void openShop(); void openCart(); void openProduct(String code);
+  Future<bool> addToCart(String code, {int quantity = 1});
+  List<CheckoutLine> get cartLines;   // barang berbayar, untuk progres misi
+  KelopakProduct? productOf(String code);
+  void playCue(GameCue cue);
+  KelopakReminder? get reminder;      // "Ingatkan saya" Sabtu 09.00 WIB
+  void onEvent(KelopakEvent event);   // analitik + kotak masuk
+}
+
+abstract interface class KelopakGameActions {   // opsional, diimplementasikan bersama KelopakHost
+  void openCheckout(); void openOrder(String orderId);
+  Future<bool> setCartQuantity(String code, int quantity);
+  bool? get soundOn; void setSoundOn(bool value);
+}
 ```
 
-### misi_belanja (`package:misi_belanja/misi_belanja.dart`)
-```dart
-final class MissionStage { const MissionStage({required this.number, required this.minOrderSubtotal, required this.voucherAmount, required this.voucherMinSpend, required this.voucherValidDays}); ... }
-const List<MissionStage> demoMissionStages; // [1: 75000→10000 min 100000, 2: 100000→5000 min 100000], valid 30 hari
-enum StageStatus { completed, active, locked }
-StageStatus stageStatus({required int stageIndex, required int issuedCount});
-bool allStagesDone({required List<MissionStage> stages, required int issuedCount});
-enum OrderRejection { notCompleted, belowThreshold, alreadyCounted, allStagesDone }
-final class MissionDecision { final MissionStage? issuedStage; final OrderRejection? rejection; bool get issued; }
-MissionDecision evaluateOrder({required List<MissionStage> stages, required int issuedCount, required Set<String> countedOrderIds, required String orderId, required int eligibleSubtotal, required bool completed});
-final class MissionVoucher { const MissionVoucher({required this.id, required this.stageNumber, required this.sourceOrderId, required this.amount, required this.minSpend, required this.issuedDay, required this.expiresDay, this.usedOnOrderId}); ... MissionVoucher markUsed(String orderId); Map<String,Object?> toJson(); factory fromJson(...); }
-enum RedeemProblem { belowMinimum, sameOrder, alreadyUsed, expired }
-RedeemProblem? redeemProblem({required MissionVoucher voucher, required String orderId, required int subtotal, required int today});
-String rupiah(int amount);               // "Rp10.000"
-class MissionLadder extends StatelessWidget ({required List<MissionStage> stages, required int issuedCount, String? pendingNote})
-class VoucherCard extends StatelessWidget ({required MissionVoucher voucher, required int today, VoidCallback? onUse})
-```
+Tanpa `KelopakGameActions`: "Checkout" dan "Lihat pesanan" membuka keranjang, mengurangi jumlah membuka keranjang, tombol suara di game disembunyikan.
 
-Semua widget modul hanya memakai `Theme.of(context)` (ColorScheme + TextTheme) dan slot widget dari host; tanpa warna hardcode selain ilustrasi.
+### 4.3 Zona Hadiah dan game
 
-## 2b. Hub (kelopak_hub) — keputusan teknis
+| API | Isi |
+|---|---|
+| `kelopakRoutes` (`Map<String, WidgetBuilder>`), `kelopakRouteFor(location)` | `/hadiah` → `RewardsHubPage`, `/hadiah/checkin` → `KelopakCheckInScreen`, `/hadiah/roda` → `KelopakWheelScreen`, `/hadiah/misi` → `KelopakMissionScreen`, `/hadiah/hadiahku` → `MyGiftsPage`, `/hadiah/voucher` → `VouchersPage`, `/hadiah/riwayat` → `LedgerPage`. Jalur di `KelopakPaths`. |
+| `KelopakNavigation(open: (context, location) {...}, child:)` | Cara halaman hub berpindah jalur; bawaan `Navigator.pushNamed`. Host dengan tab memetakan `/hadiah` ke tab Hadiah. |
+| `KelopakCheckInController`, `KelopakWheelController`, `KelopakMissionController` | Controller sungguhan tiap modul di atas `KelopakController` (dipakai layar `Kelopak*Screen`; boleh dipakai langsung dengan halaman modul). |
+| `showKelopakHowTo(context, focus:)`, `KelopakHowTo` | Lembar "Cara pakai" dengan peluang roda dan tahap misi yang berlaku. |
+| `RewardsHubPage(showBack:, onBack:)` | Zona Hadiah SPEC §5. |
+| `KelopakGameStatus.all(controller)` | Status hari ini tiap game (dipakai kartu dan strip; bisa dipakai host untuk titik merah). |
+| `kelopakPreviewTheme(Brightness)` | Tema token Bpedia untuk contoh/tes (host memakai `BpTheme`). |
 
-- Paket: `audioplayers ^6.7.1`, `shared_preferences ^2.5.6`, `flutter_svg ^2.3.4`, `url_launcher ^6.3.3`, `web ^1.1.1` (hanya build web: event `storage` antar-tab dan `prefers-reduced-motion`, lewat impor kondisional `lib/core/browser.dart`), `flutter_localizations` (SDK; locale tunggal `id`); dev: `flutter_launcher_icons ^0.14.4`, `flutter_native_splash ^2.4.7`, `flutter_lints ^6.0.0`. Environment `sdk: ^3.11.0`, `flutter: '>=3.41.0'`.
-- Penyimpanan: interface `KeyValueStore { Future<String?> read(String key); Future<void> write(String key, String value); Future<void> delete(String key); }` dengan implementasi `SharedPreferencesAsync` (produksi) dan `MemoryKeyValueStore` (tes). Satu dokumen JSON kunci `bpedia_preview_state_v1`, `"schema": 1`, field `revision` (0 bila belum pernah disimpan). JSON rusak/skema tak dikenal → mulai baru tanpa crash. Simpan: baca revisi tersimpan dulu; bila lebih baru dari milik instans ini (tab lain menyimpan), dokumen itu diadopsi dan tidak ditimpa; kalau tidak, tulis dengan revisi berikutnya.
-- Suara: `AudioPool` per SFX (mode default mediaPlayer), BGM `AudioPlayer` loop. Semua panggilan audio dibungkus agar kegagalan (web autoplay, codec) tidak pernah melempar error ke UI.
-- Tautan resmi (Akun > Tentang): `https://bpedia.id` dan halaman toko resmi app Bpedia (`AppConfig.downloadAppFor(defaultTargetPlatform)`: App Store `https://apps.apple.com/app/id6751265630` untuk iOS/macOS, Google Play `https://play.google.com/store/apps/details?id=com.wot.beautypedia` untuk lainnya) via `launchUrl(..., mode: LaunchMode.externalApplication)`. OneLink resmi tidak dipakai karena lewat redirect atribusi AppsFlyer (pid=Blog, c=hot_sale); minta OneLink khusus demo ke tim marketing bila atribusi diperlukan.
-- Jam: `AppClock` (now() bisa disuntik + `demoOffsetDays`) → `today` = `wibDayOf(now) + offset`.
-- Acak: `Random.secure()` di AppState untuk `roll` (0..9999) dan `landingSeed`; engine murni deterministik (mudah dites).
-- Hindari API deprecated: `withOpacity` → `withValues(alpha:)`, `SemanticsService.announce` → `sendAnnouncement`, `WillPopScope` → `PopScope`, `MaterialStateProperty` → `WidgetStateProperty`.
+### 4.4 Widget tanam (Beranda host)
 
-## 3. Pemetaan ColorScheme (host)
+| Widget | Isi |
+|---|---|
+| `KelopakWalletStrip({margin})` | Tiga sel: Kelopak + nilai rupiah (→ `/hadiah/riwayat`), voucher (→ `/hadiah/voucher`), hadiah menunggu (→ keranjang host; nol → `/hadiah/hadiahku`). Netral mengikuti tema host. Tamu: ketuk → `openLogin`. |
+| `KelopakGameStrip({margin})` | Kartu pesta "Main bareng Bipy": Bipy berjalan + tiga kartu mini (Check-in, Roda Sabtu, Misi) dengan titik merah; ketuk kartu → game, latar → `/hadiah`. |
+| `MissionCompleteCelebration({child, navigatorKey, enabled})` | Mendengarkan `MissionCompletedEvent` dan membuka lembar "Misi tuntas!". Fungsi langsung: `showMissionCompleteCelebration(context, voucher:, stageNumber:, onViewVouchers:)`. |
 
-primary `#D81F57` · onPrimary `#FFFFFF` · primaryContainer `#FDE7EC` · onPrimaryContainer `#45122B` · secondary `#B3164B` · onSecondary `#FFFFFF` · secondaryContainer `#FBCFDB` · onSecondaryContainer `#45122B` · tertiary `#F5B83D` · onTertiary `#2A0A18` · tertiaryContainer `#FFF4DB` · onTertiaryContainer `#8A5A00` · surface `#FFF7F8` · onSurface `#45122B` · onSurfaceVariant `#6E4556` · surfaceContainerLowest `#FFFFFF` · surfaceContainerLow `#FFF7F8` · surfaceContainer `#FDE7EC` · outline `#9C7E8A` · outlineVariant `#F3D3DD` · error `#C62828`. Gelap mengikuti token `[data-theme="dark"]` brand.
-Tipografi Poppins: display 28/34 w700, title 22/28 w600, headline 18/24 w600, body 16/24 w400, body-s 14/20 w400, caption 12/16 w500, button 16/20 w600, price 18/24 w800. Tagline: Fraunces italic.
-Radius 6/10/16/24/40/pill · spasi 4/8/12/16/24/32/48 · target sentuh min. 48 dp · bayangan kartu `0 10 30 rgba(179,22,75,.08)`.
+Semua widget membaca `KelopakScope` terdekat; pasang scope di atas `MaterialApp` (atau di atas navigator host).
 
-## 4. ADDENDUM brand (mengalahkan nilai di atas bila bertentangan)
+## 5. Pemetaan `ColorScheme` host
 
-- FilledButton/OutlinedButton/TextButton: `StadiumBorder()` (pil), `minimumSize: Size(64, 52)`, padding horizontal 24, label 16 w600. OutlinedButton sekunder: isi putih (`surfaceContainerLowest`), garis & label `secondary` (Berry `#B3164B`).
-- Chip: `StadiumBorder`; tidak aktif putih + garis `outlineVariant` + label `onSurface`; terpilih `primaryContainer` + garis (1,5 px) & label `secondary` (lewat `WidgetStateBorderSide`/`WidgetStateColor` di `chipTheme`). Chip hanya untuk filter (Cari, Transaksi); kategori di Beranda yang membuka pencarian adalah tombol pil bergaya chip tidak aktif (bukan checkbox).
-- Card produk: radius 16, border 1,5 px `outlineVariant`, bayangan kartu brand. Harga: `secondary` w800. Harga coret: `onSurfaceVariant` + lineThrough.
-- Nama tampil app: **"Bpedia Demo"** (label launcher maks. 12 karakter). Logo AppBar: `assets/images/logo_wordmark_bipy.webp` (gelap: `logo_wordmark_reverse.webp`).
-- Lihat `SPEC-UIUX.md` §7 untuk aturan lengkap (badge, Bipy pose, voice "Babes", audio context).
+Halaman hub membaca warna dari tema host dengan pemetaan `BpTheme` (`bpedia_app/lib/design/theme.dart`): `primary` = brand, `onPrimaryContainer` = brandStrong, `primaryContainer` = brandTint, `tertiaryContainer`/`onTertiaryContainer` = goldTint/onGoldTint, `surface`, `surfaceDim` = canvas, `surfaceContainerHighest` = surfaceMuted, `outlineVariant` = line, `onSurfaceVariant` = textMuted, `outline` = textFaint. Hero, tombol permen, dan koin memakai palet pesta tetap (`FestivePalette`).

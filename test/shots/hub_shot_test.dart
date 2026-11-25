@@ -66,7 +66,10 @@ void main() {
         tester,
         hubApp(
           fixture,
-          home: const VouchersPage(showHistory: true),
+          home: const VouchersPage(
+            key: ValueKey<String>('riwayat'),
+            showHistory: true,
+          ),
           brightness: brightness,
         ),
         name: 'voucher_riwayat_$tone',
