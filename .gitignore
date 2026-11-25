@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Runner v2 sudah pindah ke bpedia-app; sisa lokal (termasuk key.properties) tidak boleh ikut commit.
+/android/
+/ios/
+/web/

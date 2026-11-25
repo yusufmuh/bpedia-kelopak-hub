@@ -1,24 +1,19 @@
-/// Format angka, uang, Kelopak, tanggal, dan hitung mundur (Indonesia).
+/// Format angka, uang, Kelopak, dan tanggal (Indonesia).
 ///
-/// Uang selalu lewat [rupiah] ("Rp10.000", tanpa spasi).
+/// Uang selalu lewat [rupiah] ("Rp10.000", tanpa spasi). Nama hari, tanggal
+/// pendek, dan hitung mundur adalah milik `roda_sabtu` dan hanya diekspor
+/// ulang di sini.
 library;
 
-import 'package:daily_checkin/daily_checkin.dart' show wibDateOf, wibWeekdayOf;
+import 'package:daily_checkin/daily_checkin.dart' show wibDateOf;
 import 'package:misi_belanja/misi_belanja.dart' show rupiah;
+import 'package:roda_sabtu/roda_sabtu.dart' show weekdayName;
 
 import 'units.dart' show rupiahPerKelopak;
 
 export 'package:misi_belanja/misi_belanja.dart' show rupiah;
-
-const List<String> _weekdayNames = <String>[
-  'Senin',
-  'Selasa',
-  'Rabu',
-  'Kamis',
-  'Jumat',
-  'Sabtu',
-  'Minggu',
-];
+export 'package:roda_sabtu/roda_sabtu.dart'
+    show countdownLabel, shortDateLabel, weekdayName;
 
 const List<String> _monthNames = <String>[
   'Jan',
@@ -60,30 +55,8 @@ String kelopakRupiah(int amount) => rupiah(amount * rupiahPerKelopak);
 String kelopakWithRupiah(int amount) =>
     '${kelopakLabel(amount)} (${kelopakRupiah(amount)})';
 
-/// Indonesian weekday of a WIB day: "Sabtu".
-String weekdayName(int wibDay) => _weekdayNames[wibWeekdayOf(wibDay) - 1];
-
 /// "Sabtu, 28 Nov 2026".
 String wibDateLabel(int wibDay) {
   final date = wibDateOf(wibDay);
   return '${weekdayName(wibDay)}, ${date.day} ${_monthNames[date.month - 1]} ${date.year}';
-}
-
-/// "28 Nov".
-String shortDateLabel(int wibDay) {
-  final date = wibDateOf(wibDay);
-  return '${date.day} ${_monthNames[date.month - 1]}';
-}
-
-/// "2 hari 3 jam", "5 jam 12 menit", "45 menit" or "kurang dari 1 menit".
-String countdownLabel(Duration remaining) {
-  if (remaining < const Duration(minutes: 1)) return 'kurang dari 1 menit';
-  final days = remaining.inDays;
-  final hours = remaining.inHours % Duration.hoursPerDay;
-  final minutes = remaining.inMinutes % Duration.minutesPerHour;
-  if (days > 0) return hours > 0 ? '$days hari $hours jam' : '$days hari';
-  if (hours > 0) {
-    return minutes > 0 ? '$hours jam $minutes menit' : '$hours jam';
-  }
-  return '$minutes menit';
 }
