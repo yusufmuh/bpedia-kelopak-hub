@@ -1,0 +1,80 @@
+{
+  "_catatan": "Kampanye demo Bpedia v3 untuk server acuan, setara buildDemoCampaign() di bpedia-app/lib/config/demo_campaign.dart dan voucher event di bpedia-app/assets/promo/promo.json. Nilai peluang roda = rodaDemoConfig() di spin.php.",
+  "policy": {
+    "rupiahPerKelopak": 100,
+    "redeemShareBp": 10000
+  },
+  "wheelQuota": 3,
+  "wheelQuotaRefillsWeekly": true,
+  "wheelProductCodes": [
+    "P21P03C01000082",
+    "P21F02C01000031",
+    "P21P03C01000171",
+    "P21P03C01000189"
+  ],
+  "checkIn30ProductCode": "P39A06S01000089",
+  "missionStages": [
+    {
+      "number": 1,
+      "title": "Skincare Animate",
+      "minOrderSubtotal": 75000,
+      "voucherAmount": 10000,
+      "voucherMinSpend": 100000,
+      "voucherValidDays": 30,
+      "productCodes": [
+        "P39A06S01000021",
+        "P39A06S01000044",
+        "P39A06S01000089",
+        "P39A06S01000003",
+        "P39A06S01000007",
+        "P39A06S01000032",
+        "P39A06S01000046",
+        "P39A06S01000090",
+        "P39A06S01000091",
+        "P39A06S01000002"
+      ]
+    },
+    {
+      "number": 2,
+      "title": "Pinkflash & Focallure",
+      "minOrderSubtotal": 100000,
+      "voucherAmount": 15000,
+      "voucherMinSpend": 150000,
+      "voucherValidDays": 30,
+      "productCodes": [
+        "P21F02S01000024",
+        "P21F02C01000002",
+        "P21F02C01000011",
+        "P21F02C01000026",
+        "P21F02C01000031",
+        "P21F02C01000300",
+        "P21F02C01000536",
+        "P21P03C01000009",
+        "P21P03C01000022",
+        "P21P03C01000082",
+        "P21P03C01000107",
+        "P21P03C01000149",
+        "P21P03C01000161",
+        "P21P03C01000171",
+        "P21P03C01000173",
+        "P21P03C01000184",
+        "P21P03C01000189",
+        "P21P03C01000297",
+        "P21F02M01000195",
+        "P21P03M01000068"
+      ]
+    }
+  ],
+  "promos": [
+    {
+      "id": "tanggal-kembar-1212",
+      "title": "Voucher Tanggal Kembar 12.12",
+      "amount": 12000,
+      "minSpend": 120000,
+      "validDays": 7,
+      "claimFrom": "2026-12-12",
+      "claimUntil": "2026-12-12"
+    }
+  ],
+  "prices": null
+}

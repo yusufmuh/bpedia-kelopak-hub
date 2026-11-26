@@ -55,13 +55,36 @@ Endpoint yang disarankan (`KelopakAction`), semua membalas `{"state": {...}, "re
 | `read` | `GET /kelopak/state` | - | - |
 | `checkIn` | `POST /kelopak/check-in` | `today` | `claimed`, `streak`, `dailyKelopak`, `bonusKelopak`, `productEntitled`, `giftId` |
 | `spin` | `POST /kelopak/wheel/spin` | `today` | `spun`, `wibDay` atau `reason` |
-| `claimPromo` | `POST /kelopak/vouchers/promo` | `promoId`, `amount`, `minSpend`, `validDays`, `title`, `today` | `claimed`, `voucherId` atau `problem` |
+| `claimPromo` | `POST /kelopak/vouchers/promo` | `promoId`, `today` | `claimed`, `voucherId` atau `problem` |
 | `commit` | `POST /kelopak/orders/commit` | `orderId`, `request` (`CheckoutRequest`), `token`, `today` | `committed`, `orderId` atau `problem` |
 | `cancel` | `POST /kelopak/orders/cancel` | `orderId`, `today` | `cancelled`, `kelopakRefunded`, `voucherId`, `giftIds` |
 | `ship` | `POST /kelopak/orders/ship` | `orderId` | `shipped`, `orderId` |
 | `complete` | `POST /kelopak/orders/complete` | `orderId`, `today` | `completed`, `issuedStage`, `rejection`, `voucherId`, `giftIds` |
 
-Ketentuan server: mengundi roda sendiri; menghitung ulang kutipan dari `request` dan menolak dengan `quoteOutdated` bila `token` tidak cocok; komit ulang dengan token sama idempoten, token beda untuk ID sama = `duplicateOrder`; `today` hanya petunjuk demo (produksi memakai jam WIB server). Simulator PHP v2 ada di `server/`; aksi pesanan v3 belum dibuat di PHP (BACKLOG-V3).
+Tambahan untuk sistem lain (bukan `KelopakAction`): `POST /kelopak/orders/quote` (`request`, `today`) membalas kutipan server, `GET /kelopak/gifts` membalas ID hadiah per status.
+
+Ketentuan server:
+- **Nilai dari server.** Voucher promo diambil dari katalog promo server berdasarkan `promoId`; `amount`, `minSpend`, `validDays`, dan `title` yang masih dikirim `RemoteKelopakBackend` wajib diabaikan. Roda diundi server; kutipan dihitung ulang dari `request` (harga dicek ke katalog backend) dan komit ditolak `quoteOutdated` bila `token` tidak cocok.
+- **Idempoten.** Komit ulang dengan token sama idempoten, token beda untuk ID sama = `duplicateOrder`; check-in, roda, promo, batal, kirim, terima yang diulang tidak menggandakan efek. Header opsional `Idempotency-Key` memutar ulang `result` yang sama (`Idempotency-Replayed: true`); kunci sama dengan badan beda = 409.
+- **Token sesi.** Setiap permintaan membawa `Authorization: Bearer <token sesi app>`; server menurunkan ID pelanggan dari token, tidak pernah dari badan.
+- **Hari.** `today` hanya petunjuk Mode Demo; produksi memakai jam WIB server.
+- **Kirim/terima** di produksi dipanggil sistem pesanan dengan `X-Kelopak-Service-Key`, bukan app.
+
+Galat HTTP: penolakan aturan bisnis tetap 200 dengan `result` (`claimed: false`, `problem`, ...). Selain itu badan `application/problem+json` (RFC 9457) `{type, title, status, detail, code}`:
+
+| Status | `code` |
+|---|---|
+| 400 | `invalidRequest` |
+| 401 | `unauthorized` (+ `WWW-Authenticate: Bearer`) |
+| 403 | `forbidden` |
+| 404 | `notFound` |
+| 405 | `methodNotAllowed` (+ `Allow`) |
+| 409 | `idempotencyKeyReused` |
+| 413 | `payloadTooLarge` |
+| 415 | `unsupportedMediaType` |
+| 500 | `internal` |
+
+`RemoteKelopakBackend` membungkus status bukan 2xx menjadi `KelopakBackendException`. Rincian lengkap (header, kutipan dan token, kampanye, daftar periksa produksi): `docs/BACKEND.md`. Server acuan v3 yang menjalankan kontrak ini: `server/` (`php server/selftest.php`).
 
 ## 4. API Dart untuk host
 

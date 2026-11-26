@@ -15,7 +15,7 @@ Untuk pengembang Flutter dan backend yang memasang sistem Kelopak (poin, hadiah,
 | `lib/src/kit`, `lib/kit.dart` | Kit pesta (salinan identik dari `v3/kit_src`; jangan diubah di sini) + `BipySprite` |
 | `assets/` | `art/` (seni 3D 512 px), `bipy/` (sprite + pose), `fx/` (stiker) |
 | `example/` | App contoh: Beranda tiruan dengan widget tanam, zona Hadiah, tiga game, toko dan keranjang sederhana, panel demo |
-| `server/` | Simulator PHP v2 (aksi pesanan v3 belum ada) |
+| `server/` | Server acuan PHP v3: semua `KelopakAction` + `quote`/`gifts`, token sesi, idempotensi, galat problem+json, swa-uji (`docs/BACKEND.md`) |
 
 ## 2. Memasang di aplikasi
 
@@ -49,7 +49,16 @@ Hal yang perlu diingat:
 
 ## 3. Backend produksi
 
-Ganti `LocalKelopakBackend` dengan `RemoteKelopakBackend(transport: MyTransport(), campaign: ...)`. `KelopakTransport.send(action, body)` mengirim ke `action.method` + `action.path` dan mengembalikan badan JSON `{state, result}`. Endpoint, isi permintaan, dan bentuk `result`: `docs/SPEC-CONTRACT.md` §3. Server wajib mengundi roda sendiri, memakai jam WIB server, dan menghitung ulang kutipan (tolak `quoteOutdated` bila token tidak cocok).
+Ganti `LocalKelopakBackend` dengan `RemoteKelopakBackend(transport: MyTransport(), campaign: ...)`. `KelopakTransport.send(action, body)` mengirim ke `action.method` + `action.path` dan mengembalikan badan JSON `{state, result}`. Endpoint, isi permintaan, dan bentuk `result`: `docs/SPEC-CONTRACT.md` §3. Server wajib mengundi roda sendiri, memakai jam WIB server, menghitung ulang kutipan (tolak `quoteOutdated` bila token tidak cocok), dan mengambil nilai voucher promo dari katalognya sendiri (abaikan `amount`/`minSpend`/`validDays`/`title` dari klien).
+
+Untuk tim backend: kontrak HTTP lengkap (token `Authorization: Bearer`, `Idempotency-Key`, galat `application/problem+json`, kutipan dan token, kampanye, daftar periksa produksi) ada di `docs/BACKEND.md`. Server acuan PHP di `server/` menjalankan kontrak itu dan bisa dipakai sebagai lawan uji:
+
+```bash
+php server/selftest.php                                       # swa-uji, wajib 0 gagal
+BPEDIA_KELOPAK_DEMO=1 php -S 127.0.0.1:8787 server/index.php  # lawan uji lokal untuk RemoteKelopakBackend
+```
+
+Di produksi `shipOrder`/`completeOrder` dipanggil sistem pesanan (header `X-Kelopak-Service-Key`), bukan app.
 
 ## 4. Menjalankan contoh
 
@@ -74,6 +83,6 @@ Tes UI ada di `test/ui/` (controller game, halaman, widget tanam, aksesibilitas)
 
 ## 6. Catatan terbuka
 
-- Aksi pesanan v3 di `server/*.php` belum dibuat.
+- `RemoteKelopakBackend.claimPromoVoucher` masih mengirim `amount`, `minSpend`, `validDays`, `title`; server mengabaikannya (cukup `promoId`).
 - Kontras teks putih kecil di bagian paling terang hero pesta perlu dinilai bersama kit (`FestivePalette.hero`).
 - Nilai kampanye (peluang, kuota, voucher, produk misi) adalah (demo).

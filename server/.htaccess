@@ -1,0 +1,16 @@
+# Server acuan Kelopak v3 di Apache: semua jalur ke index.php, berkas lain tertutup.
+Options -Indexes
+
+<FilesMatch "\.(json|md)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^(checkin|spin|missions|kelopak|kelopak_http|selftest)\.php$">
+    Require all denied
+</FilesMatch>
+
+RewriteEngine On
+RewriteRule ^data/ - [F,L]
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]

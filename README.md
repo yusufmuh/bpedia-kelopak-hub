@@ -45,7 +45,7 @@ runApp(KelopakScope(
 ));
 ```
 
-API lengkap, bentuk data, dan endpoint backend: `docs/SPEC-CONTRACT.md`. Langkah integrasi: `HANDOFF-PENGEMBANG.md`. Produk: `PRD.md`.
+API lengkap, bentuk data, dan endpoint backend: `docs/SPEC-CONTRACT.md`; kontrak HTTP rinci untuk tim backend dan server acuan PHP: `docs/BACKEND.md`, `server/`. Langkah integrasi: `HANDOFF-PENGEMBANG.md`. Produk: `PRD.md`.
 
 ## API publik utama
 
@@ -76,6 +76,7 @@ flutter run -d chrome
 flutter analyze
 flutter test --concurrency=3
 cd example && flutter test
+php server/selftest.php     # server acuan, PHP 8.2+
 ```
 
 ## Struktur
@@ -93,5 +94,5 @@ assets/art, bipy, fx        seni 3D, Bipy, stiker
 example/                    app contoh
 test/                       domain, storage, backend, controller, ui, shots
 docs/                       kontrak, riset, tangkapan layar
-server/                     simulator PHP v2
+server/                     server acuan PHP v3 (kontrak docs/BACKEND.md, swa-uji php server/selftest.php)
 ```
