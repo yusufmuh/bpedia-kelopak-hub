@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:daily_checkin/daily_checkin.dart' show CheckInRules;
 import 'package:flutter/material.dart';
 
 import '../../kit.dart';
@@ -16,6 +17,7 @@ import '../domain/gifts.dart';
 import '../games/game_actions.dart';
 import '../host/kelopak_host.dart';
 import 'game_status.dart';
+import 'hero_balance.dart';
 import 'hub_actions.dart';
 import 'hub_art.dart';
 import 'hub_widgets.dart';
@@ -26,7 +28,12 @@ import 'kelopak_navigation.dart';
 class RewardsHubPage extends StatelessWidget {
   /// Membuat halaman. [showBack] null = otomatis (ada tombol kembali bila
   /// halaman bisa ditutup).
-  const RewardsHubPage({super.key, this.showBack, this.onBack});
+  const RewardsHubPage({
+    super.key,
+    this.showBack,
+    this.onBack,
+    this.actions = const <Widget>[],
+  });
 
   /// Tampilkan tombol kembali.
   final bool? showBack;
@@ -34,12 +41,17 @@ class RewardsHubPage extends StatelessWidget {
   /// Pengganti `Navigator.maybePop`.
   final VoidCallback? onBack;
 
+  /// Aksi host di kepala (mis. Notifikasi dan Keranjang berlencana), tampil
+  /// sebelum ikon bantuan. Ikon putih 24 dp di atas hero pesta.
+  final List<Widget> actions;
+
   @override
   Widget build(BuildContext context) {
     final c = KelopakScope.of(context);
     final tones = HubTones.of(context);
     final loggedIn = c.isLoggedIn;
     final pending = loggedIn ? c.pendingGifts : const <PendingGift>[];
+    final statuses = KelopakGameStatus.all(c);
     final gap = SliverToBoxAdapter(
       child: ColoredBox(color: tones.canvas, child: const SizedBox(height: 8)),
     );
@@ -48,25 +60,45 @@ class RewardsHubPage extends StatelessWidget {
       showBack: showBack ?? Navigator.of(context).canPop(),
       onBack: onBack,
       actions: <Widget>[
+        ...actions,
         GameBarAction(
           icon: Icons.help_outline_rounded,
           tooltip: 'Cara pakai',
           onPressed: () => unawaited(showKelopakHowTo(context)),
         ),
       ],
-      hero: _HubHero(controller: c),
+      panelOverlap: 0,
+      heroPadding: EdgeInsets.zero,
+      hero: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: _HubHero(controller: c),
+          ),
+          const _PanelLip(),
+        ],
+      ),
       slivers: <Widget>[
-        const SliverToBoxAdapter(child: _PlayTodayHeader()),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          sliver: SliverList.list(
-            children: <Widget>[
-              for (final status in KelopakGameStatus.all(c))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: KelopakGameCard(status: status),
-                ),
-            ],
+        SliverToBoxAdapter(
+          child: ColoredBox(
+            color: tones.brandTint,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _PlayTodayHeader(
+                    readyCount: statuses.where((s) => s.ready).length,
+                  ),
+                  for (final status in statuses)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: KelopakGameCard(status: status),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
         if (pending.isNotEmpty) ...<Widget>[
@@ -82,6 +114,30 @@ class RewardsHubPage extends StatelessWidget {
         gap,
         const SliverToBoxAdapter(child: _HowItWorks()),
       ],
+    );
+  }
+}
+
+/// Bibir lembar panel "Main hari ini" yang menumpuk di bawah hero.
+class _PanelLip extends StatelessWidget {
+  const _PanelLip();
+
+  @override
+  Widget build(BuildContext context) {
+    final tones = HubTones.of(context);
+    return Container(
+      height: 24,
+      decoration: BoxDecoration(
+        color: tones.brandTint,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x246B1439),
+            blurRadius: 16,
+            offset: Offset(0, -6),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -107,204 +163,65 @@ class _HubHeroState extends State<_HubHero> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    const white = Colors.white;
-    final Widget info = c.isLoggedIn
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Text(
-                'Kelopakmu',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xE6FFFFFF),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Semantics(
-                label: 'Saldo ${kelopakLabel(c.balance)}',
-                excludeSemantics: true,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    const Image(image: HubArt.coin, width: 38, height: 38),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: AlignmentDirectional.centerStart,
-                        child: CountUpText(
-                          value: c.balance,
-                          bump: true,
-                          style: const TextStyle(
-                            fontSize: 36,
-                            height: 42 / 36,
-                            fontWeight: FontWeight.w800,
-                            color: white,
-                            shadows: <Shadow>[
-                              Shadow(
-                                color: Color(0x666B1439),
-                                offset: Offset(0, 2),
-                                blurRadius: 6,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'senilai ${kelopakRupiah(c.balance)} · 1 Kelopak = '
-                '${rupiah(c.campaign.policy.rupiahPerKelopak)}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 16 / 12,
-                  color: Color(0xF2FFFFFF),
-                  fontFeatures: tabularFigures,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  GlassChip(
-                    label: 'Riwayat',
-                    leading: const Icon(
-                      Icons.receipt_long_rounded,
-                      size: 16,
-                      color: white,
-                    ),
-                    onTap: () => KelopakNavigation.openPath(
-                      context,
-                      KelopakPaths.ledger,
-                    ),
-                  ),
-                  GlassChip(
-                    label: 'Cara pakai',
-                    leading: const Icon(
-                      Icons.help_outline_rounded,
-                      size: 16,
-                      color: white,
-                    ),
-                    onTap: () => unawaited(showKelopakHowTo(context)),
-                  ),
-                ],
-              ),
-            ],
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Text(
-                'Hai, Babes!',
-                style: TextStyle(
-                  fontSize: 24,
-                  height: 30 / 24,
-                  fontWeight: FontWeight.w800,
-                  color: white,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Masuk untuk mulai kumpulkan Kelopak dan potong harga belanjamu.',
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 18 / 13,
-                  color: Color(0xF2FFFFFF),
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: c.ensureLoggedIn,
-                style: FilledButton.styleFrom(
-                  backgroundColor: white,
-                  foregroundColor: FestivePalette.candyBottom,
-                  minimumSize: const Size(112, 44),
-                  tapTargetSize: MaterialTapTargetSize.padded,
-                  shape: const StadiumBorder(),
-                  textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                child: const Text('Masuk'),
-              ),
-            ],
-          );
+    final loggedIn = c.isLoggedIn;
+    final Widget info = loggedIn
+        ? HubHeroBalance(controller: c)
+        : _HeroGuest(onLogin: c.ensureLoggedIn);
+    final bipy = Semantics(
+      button: true,
+      label: 'Bipy, ketuk untuk menyapa',
+      child: GestureDetector(
+        onTap: () => _bipy.play(BipySprites.wave),
+        child: SizedBox(
+          height: 118,
+          width: 80,
+          child: SpriteAnimation(
+            spec: BipySprites.idle,
+            controller: _bipy,
+            height: 118,
+          ),
+        ),
+      ),
+    );
     return Stack(
       clipBehavior: Clip.none,
       children: <Widget>[
         const PositionedDirectional(
-          end: 112,
-          top: -6,
+          end: 92,
+          top: 0,
           child: Bobbing(
             amplitude: 4,
             phase: 0.2,
             tilt: 0.08,
-            child: Image(image: HubArt.coin, width: 26, height: 26),
-          ),
-        ),
-        const PositionedDirectional(
-          end: 4,
-          top: 2,
-          child: Bobbing(
-            amplitude: 5,
-            phase: 0.6,
-            tilt: 0.12,
             child: Image(image: HubArt.coin, width: 22, height: 22),
           ),
         ),
         const PositionedDirectional(
-          end: 2,
-          bottom: 30,
+          end: 0,
+          top: 64,
           child: Bobbing(
-            amplitude: 6,
-            phase: 0.4,
-            child: Image(image: HubArt.sparkle, width: 26, height: 26),
+            amplitude: 5,
+            phase: 0.6,
+            tilt: 0.12,
+            child: Image(image: HubArt.coin, width: 18, height: 18),
           ),
         ),
-        const PositionedDirectional(
-          end: 118,
-          bottom: 14,
-          child: Bobbing(
-            amplitude: 4,
-            phase: 0.8,
-            tilt: -0.1,
-            child: Image(image: HubArt.star, width: 22, height: 22),
-          ),
-        ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: info,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Expanded(child: info),
+                const SizedBox(width: 4),
+                bipy,
+              ],
             ),
-            const SizedBox(width: 8),
-            Semantics(
-              button: true,
-              label: 'Bipy, ketuk untuk menyapa',
-              child: GestureDetector(
-                onTap: () => _bipy.play(BipySprites.wave),
-                child: SizedBox(
-                  height: 150,
-                  width: 96,
-                  child: SpriteAnimation(
-                    spec: BipySprites.idle,
-                    controller: _bipy,
-                    height: 150,
-                  ),
-                ),
-              ),
-            ),
+            if (loggedIn) ...<Widget>[
+              const SizedBox(height: 10),
+              _HeroWeekStrip(controller: c),
+            ],
           ],
         ),
       ],
@@ -312,34 +229,239 @@ class _HubHeroState extends State<_HubHero> {
   }
 }
 
+class _HeroGuest extends StatelessWidget {
+  const _HeroGuest({required this.onLogin});
+
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    const white = Colors.white;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Text(
+            'Hai, Babes!',
+            style: TextStyle(
+              fontSize: 24,
+              height: 30 / 24,
+              fontWeight: FontWeight.w800,
+              color: white,
+              shadows: heroTextShadow,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Masuk untuk mulai kumpulkan Kelopak dan potong harga belanjamu.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 18 / 13,
+              fontWeight: FontWeight.w500,
+              color: white,
+              shadows: heroTextShadow,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: onLogin,
+            style: FilledButton.styleFrom(
+              backgroundColor: white,
+              foregroundColor: FestivePalette.candyBottom,
+              minimumSize: const Size(112, 44),
+              tapTargetSize: MaterialTapTargetSize.padded,
+              shape: const StadiumBorder(),
+              textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text('Masuk'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Strip check-in pekan berjalan di hero: tujuh sel, hari ini disorot dan
+/// bisa diketuk untuk membuka Check-in.
+class _HeroWeekStrip extends StatelessWidget {
+  const _HeroWeekStrip({required this.controller});
+
+  final KelopakController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final claimed = c.claimedToday;
+    final todayNumber = claimed ? c.liveStreak : c.nextCheckInStreakDay;
+    const week = CheckInRules.bonusEvery;
+    final start = (todayNumber - 1) ~/ week * week + 1;
+    return Row(
+      children: <Widget>[
+        for (var i = 0; i < week; i++) ...<Widget>[
+          if (i > 0) const SizedBox(width: 4),
+          Expanded(
+            child: _WeekCell(
+              day: start + i,
+              isToday: start + i == todayNumber,
+              done:
+                  start + i < todayNumber ||
+                  (claimed && start + i == todayNumber),
+              onTap: start + i == todayNumber
+                  ? () => KelopakNavigation.openPath(
+                      context,
+                      KelopakPaths.checkIn,
+                    )
+                  : null,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _WeekCell extends StatelessWidget {
+  const _WeekCell({
+    required this.day,
+    required this.isToday,
+    required this.done,
+    this.onTap,
+  });
+
+  final int day;
+  final bool isToday;
+  final bool done;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bonus = day % CheckInRules.bonusEvery == 0;
+    const todayInk = FestivePalette.candyLip;
+    final Widget mark;
+    if (done) {
+      mark = Icon(
+        Icons.check_rounded,
+        size: 16,
+        color: isToday ? todayInk : Colors.white,
+      );
+    } else if (bonus) {
+      mark = const Image(image: HubArt.gift, width: 18, height: 18);
+    } else {
+      mark = const Image(image: HubArt.coin, width: 16, height: 16);
+    }
+    final label = isToday ? 'Hari ini' : 'Hari $day';
+    final String state = done
+        ? 'sudah check-in'
+        : isToday
+        ? 'belum check-in, ketuk untuk check-in'
+        : bonus
+        ? 'bonus pekan'
+        : 'belum';
+    final cell = Container(
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      decoration: BoxDecoration(
+        color: isToday
+            ? Colors.white
+            : done
+            ? const Color(0x4DFFFFFF)
+            : const Color(0x24FFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        border: isToday
+            ? Border.all(color: FestivePalette.goldLight, width: 2)
+            : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          mark,
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 10,
+                height: 12 / 10,
+                fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                color: isToday ? todayInk : Colors.white,
+                shadows: isToday ? null : heroTextShadow,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    final tap = onTap;
+    return Semantics(
+      label: '$label, $state',
+      button: tap != null,
+      excludeSemantics: true,
+      child: tap == null
+          ? cell
+          : GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: tap,
+              child: cell,
+            ),
+    );
+  }
+}
+
 class _PlayTodayHeader extends StatelessWidget {
-  const _PlayTodayHeader();
+  const _PlayTodayHeader({required this.readyCount});
+
+  final int readyCount;
 
   @override
   Widget build(BuildContext context) {
     final tones = HubTones.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
       child: Row(
         children: <Widget>[
           Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(
-                'Main hari ini',
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 22 / 16,
-                  fontWeight: FontWeight.w700,
-                  color: tones.text,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'Main hari ini',
+                    style: TextStyle(
+                      fontSize: 20,
+                      height: 26 / 20,
+                      fontWeight: FontWeight.w700,
+                      color: tones.text,
+                    ),
+                  ),
                 ),
-              ),
+                Text(
+                  'Kelopak, voucher, dan produk gratis',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 16 / 12,
+                    color: tones.textMuted,
+                  ),
+                ),
+              ],
             ),
           ),
-          Text(
-            wibDateLabel(KelopakScope.of(context).today),
-            style: TextStyle(fontSize: 12, color: tones.textMuted),
-          ),
+          if (readyCount > 0) ...<Widget>[
+            const SizedBox(width: 8),
+            FestiveRibbon(
+              label: '$readyCount siap',
+              tone: FestiveRibbonTone.pink,
+            ),
+          ],
         ],
       ),
     );
@@ -395,73 +517,63 @@ class KelopakGameCard extends StatelessWidget {
               ? null
               : const <BoxShadow>[
                   BoxShadow(
-                    color: Color(0x0F000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
+                    color: Color(0x146B1439),
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
                   ),
                 ],
         ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 104),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 10, 12, 10),
-            child: Row(
-              children: <Widget>[
-                _GameArt(game: game, ready: status.ready),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        game.title,
-                        style: TextStyle(
-                          fontSize: 15,
-                          height: 20 / 15,
-                          fontWeight: FontWeight.w700,
-                          color: tones.text,
-                        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+          child: Row(
+            children: <Widget>[
+              _GameArt(game: game, ready: status.ready),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      game.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 22 / 16,
+                        fontWeight: FontWeight.w700,
+                        color: tones.text,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        status.headline,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 18 / 13,
-                          fontWeight: FontWeight.w600,
-                          color: status.ready ? tones.brandStrong : tones.text,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        status.detail,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 16 / 12,
-                          color: tones.textMuted,
-                        ),
-                      ),
-                      if (filled != null) ...<Widget>[
-                        const SizedBox(height: 6),
-                        StreakDots(filled: filled),
-                      ],
-                      if (progress != null) ...<Widget>[
-                        const SizedBox(height: 8),
-                        MiniProgressBar(value: progress),
-                      ],
-                      if (stacked) ...<Widget>[
-                        const SizedBox(height: 8),
-                        button,
-                      ],
+                    ),
+                    if (filled != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      StreakDots(filled: filled),
+                    ] else if (progress != null) ...<Widget>[
+                      const SizedBox(height: 6),
+                      MiniProgressBar(value: progress, height: 4),
                     ],
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      status.headline,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 18 / 13,
+                        fontWeight: status.ready
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: status.ready
+                            ? tones.brandStrong
+                            : tones.textMuted,
+                      ),
+                    ),
+                    if (stacked) ...<Widget>[const SizedBox(height: 8), button],
+                  ],
                 ),
-                if (!stacked) ...<Widget>[const SizedBox(width: 8), button],
-              ],
-            ),
+              ),
+              if (!stacked) ...<Widget>[const SizedBox(width: 8), button],
+            ],
           ),
         ),
       ),
@@ -480,11 +592,11 @@ class _GameArt extends StatelessWidget {
     final tones = HubTones.of(context);
     final art = Image(
       image: KelopakGameCard.artOf(game),
-      width: 60,
-      height: 60,
+      width: 56,
+      height: 56,
     );
     return SizedBox.square(
-      dimension: 76,
+      dimension: 72,
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[
@@ -492,13 +604,8 @@ class _GameArt extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: <Color>[
-                  tones.brandTint,
-                  tones.brandTint.withValues(alpha: 0),
-                ],
-              ),
+              color: tones.goldTint,
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           if (game == KelopakGame.wheel)
@@ -511,7 +618,7 @@ class _GameArt extends StatelessWidget {
               child: art,
             ),
           if (ready)
-            const PositionedDirectional(top: 6, end: 6, child: ReadyDot()),
+            const PositionedDirectional(top: 4, end: 4, child: ReadyDot()),
         ],
       ),
     );
@@ -619,7 +726,11 @@ class MiniProgressBar extends StatelessWidget {
     super.key,
     required this.value,
     this.onFestive = false,
+    this.height = 6,
   });
+
+  /// Tebal bar.
+  final double height;
 
   /// Kemajuan 0..1.
   final double value;
@@ -631,9 +742,9 @@ class MiniProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tones = HubTones.of(context);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(3),
+      borderRadius: BorderRadius.circular(height / 2),
       child: SizedBox(
-        height: 6,
+        height: height,
         child: Stack(
           children: <Widget>[
             Positioned.fill(
@@ -913,6 +1024,7 @@ class _VoucherSection extends StatelessWidget {
     final c = KelopakScope.of(context);
     final tones = HubTones.of(context);
     final vouchers = c.activeVouchers;
+    final upcoming = c.upcomingVouchers;
     return ColoredBox(
       color: tones.surface,
       child: Column(
@@ -927,7 +1039,7 @@ class _VoucherSection extends StatelessWidget {
             onAction: () =>
                 KelopakNavigation.openPath(context, KelopakPaths.vouchers),
           ),
-          if (vouchers.isEmpty)
+          if (vouchers.isEmpty && upcoming.isEmpty)
             HubEmptyState(
               compact: true,
               image: HubArt.ticket,
@@ -948,8 +1060,16 @@ class _VoucherSection extends StatelessWidget {
                       child: VoucherTicket(
                         voucher: voucher,
                         state: VoucherTicketState.usable,
+                        today: c.today,
                         onUse: () => useVoucherFromHub(c),
                       ),
+                    ),
+                  for (final teaser in upcoming.take(
+                    math.max(0, 2 - vouchers.length),
+                  ))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: VoucherTeaserTicket(teaser: teaser),
                     ),
                 ],
               ),

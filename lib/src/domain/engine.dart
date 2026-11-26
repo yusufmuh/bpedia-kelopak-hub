@@ -382,7 +382,7 @@ final class KelopakEngine extends KelopakView {
       wibDay: today,
       amount: -amount,
       kind: LedgerKind.checkoutSpend,
-      note: 'Dipakai di pesanan $orderId',
+      note: 'Dipakai di pesanan #$orderId',
       orderId: orderId,
     );
   }
@@ -634,7 +634,7 @@ final class KelopakEngine extends KelopakView {
         wibDay: today,
         amount: order.kelopakUsed,
         kind: LedgerKind.checkoutRefund,
-        note: 'Dikembalikan dari pesanan $orderId',
+        note: 'Dikembalikan dari pesanan #$orderId',
         orderId: orderId,
       );
     }

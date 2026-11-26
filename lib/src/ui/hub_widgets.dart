@@ -6,6 +6,8 @@ import 'package:daily_checkin/daily_checkin.dart' show wibDateOf;
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
+import '../controller/kelopak_scope.dart';
+import '../domain/campaign.dart';
 import '../domain/gifts.dart';
 import '../domain/ledger.dart';
 import '../domain/voucher.dart';
@@ -301,8 +303,8 @@ enum VoucherTicketState {
   expired,
 }
 
-/// Voucher berbentuk tiket: potongan kiri bernilai besar, garis putus,
-/// syarat di kanan, dan tombol "Pakai".
+/// Voucher berbentuk tiket: stub "Diskon" bernilai besar, garis putus,
+/// nama sumber, syarat, sisa hari, masa berlaku, dan tombol "Pakai".
 class VoucherTicket extends StatelessWidget {
   /// Membuat tiket [voucher].
   const VoucherTicket({
@@ -310,6 +312,7 @@ class VoucherTicket extends StatelessWidget {
     required this.voucher,
     required this.state,
     this.onUse,
+    this.today,
   });
 
   /// Voucher yang ditampilkan.
@@ -321,29 +324,125 @@ class VoucherTicket extends StatelessWidget {
   /// Aksi "Pakai".
   final VoidCallback? onUse;
 
-  static const double _stubWidth = 104;
+  /// Hari WIB acuan "Sisa N hari". Null: hari `KelopakScope` terdekat, atau
+  /// baris sisa hari disembunyikan bila tidak ada scope.
+  final int? today;
+
+  /// Batas hari yang membuat "Sisa N hari" tampil.
+  static const int remainingDaysShown = 30;
 
   @override
   Widget build(BuildContext context) {
-    final tones = HubTones.of(context);
     final active = state == VoucherTicketState.usable;
-    final stubColor = active ? tones.brandTint : tones.muted;
-    final accent = active ? tones.brandStrong : tones.textFaint;
     final origin = voucher.kind == VoucherKind.mission
-        ? 'Misi Belanja tahap ${voucher.stageNumber ?? 1}'
+        ? 'Voucher Misi Belanja tahap ${voucher.stageNumber ?? 1}'
         : voucher.title;
-    final String statusText = switch (state) {
+    final day = today ?? KelopakScope.maybeRead(context)?.today;
+    final left = day == null ? null : voucher.expiresDay - day + 1;
+    final String validity = switch (state) {
       VoucherTicketState.usable =>
         'Berlaku s.d. ${wibShortDate(voucher.expiresDay)}',
       VoucherTicketState.used => 'Sudah dipakai',
       VoucherTicketState.expired =>
         'Berakhir ${wibShortDate(voucher.expiresDay)}',
     };
+    final remaining = active && left != null && left <= remainingDaysShown
+        ? (left <= 1 ? 'Berakhir hari ini' : 'Sisa $left hari')
+        : null;
+    return _VoucherTicketLayout(
+      active: active,
+      amount: voucher.amount,
+      title: origin,
+      minSpend: voucher.minSpend,
+      highlight: remaining,
+      footnote: validity,
+      semanticPrefix: 'Voucher diskon',
+      trailing: active && onUse != null
+          ? _SmallPill(label: 'Pakai', onTap: onUse!)
+          : _StatusTag(
+              label: state == VoucherTicketState.used
+                  ? 'Terpakai'
+                  : state == VoucherTicketState.expired
+                  ? 'Berakhir'
+                  : 'Siap',
+            ),
+    );
+  }
+}
+
+/// Tiket voucher event yang belum dibuka ("Akan datang"): redup, aksi
+/// "Segera", dan tanggal mulai klaim.
+class VoucherTeaserTicket extends StatelessWidget {
+  /// Membuat tiket [teaser].
+  const VoucherTeaserTicket({super.key, required this.teaser});
+
+  /// Voucher event yang diumumkan.
+  final KelopakVoucherTeaser teaser;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VoucherTicketLayout(
+      active: false,
+      amount: teaser.amount,
+      title: teaser.title,
+      minSpend: teaser.minSpend,
+      footnote: 'Klaim mulai ${wibShortDate(teaser.opensDay)}',
+      semanticPrefix: 'Voucher akan datang, diskon',
+      trailing: const _StatusTag(label: 'Segera'),
+    );
+  }
+}
+
+class _VoucherTicketLayout extends StatelessWidget {
+  const _VoucherTicketLayout({
+    required this.active,
+    required this.amount,
+    required this.title,
+    required this.minSpend,
+    required this.footnote,
+    required this.semanticPrefix,
+    required this.trailing,
+    this.highlight,
+  });
+
+  /// Bisa dipakai (berwarna) atau redup.
+  final bool active;
+
+  /// Potongan rupiah.
+  final int amount;
+
+  /// Nama sumber voucher.
+  final String title;
+
+  /// Minimal belanja.
+  final int minSpend;
+
+  /// Baris amber ("Sisa 20 hari"), opsional.
+  final String? highlight;
+
+  /// Baris terakhir ("Berlaku s.d. ...").
+  final String footnote;
+
+  /// Awal label pembaca layar.
+  final String semanticPrefix;
+
+  /// Tombol atau label status di kanan.
+  final Widget trailing;
+
+  static const double _stubWidth = 104;
+
+  @override
+  Widget build(BuildContext context) {
+    final tones = HubTones.of(context);
+    final stubColor = active ? tones.brandTint : tones.muted;
+    final accent = active ? tones.brandStrong : tones.textMuted;
+    final highlight = this.highlight;
     return Semantics(
       container: true,
       label:
-          'Voucher potongan ${rupiah(voucher.amount)}, min. belanja '
-          '${rupiah(voucher.minSpend)}. $statusText',
+          '$semanticPrefix ${rupiah(amount)}, $title, min. belanja '
+          '${rupiah(minSpend)}. ${highlight == null ? '' : '$highlight. '}'
+          '$footnote',
       child: CustomPaint(
         painter: _TicketPainter(
           stubWidth: _stubWidth,
@@ -366,9 +465,9 @@ class VoucherTicket extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
                       Text(
-                        'Potongan',
+                        'Diskon',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: accent,
                         ),
@@ -376,7 +475,7 @@ class VoucherTicket extends StatelessWidget {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          rupiah(voucher.amount),
+                          rupiah(amount),
                           style: TextStyle(
                             fontSize: 22,
                             height: 28 / 22,
@@ -401,48 +500,49 @@ class VoucherTicket extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: <Widget>[
                             Text(
-                              'Min. belanja ${rupiah(voucher.minSpend)}',
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 14,
+                                height: 19 / 14,
                                 fontWeight: FontWeight.w600,
                                 color: active ? tones.text : tones.textMuted,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              origin,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              'Min. belanja ${rupiah(minSpend)}',
                               style: TextStyle(
                                 fontSize: 12,
+                                height: 16 / 12,
                                 color: tones.textMuted,
+                                fontFeatures: tabularFigures,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            if (highlight != null)
+                              Text(
+                                highlight,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  height: 15 / 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: tones.onGoldTint,
+                                ),
+                              ),
                             Text(
-                              statusText,
+                              footnote,
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: active
-                                    ? tones.onGoldTint
-                                    : tones.textFaint,
+                                height: 15 / 11,
+                                color: tones.textMuted,
                               ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      if (active && onUse != null)
-                        _SmallPill(label: 'Pakai', onTap: onUse!)
-                      else
-                        _StatusTag(
-                          label: state == VoucherTicketState.used
-                              ? 'Terpakai'
-                              : state == VoucherTicketState.expired
-                              ? 'Berakhir'
-                              : 'Siap',
-                        ),
+                      trailing,
                     ],
                   ),
                 ),
@@ -609,10 +709,10 @@ class LedgerTile extends StatelessWidget {
     final credit = entry.isCredit;
     final note = entry.note.trim();
     final title = note.isEmpty ? entry.kind.label : note;
+    final orderId = entry.orderId;
     final sub = <String>[
-      if (note.isNotEmpty) entry.kind.label,
-      wibShortDate(entry.wibDay),
-      ?entry.orderId,
+      wibDateLabel(entry.wibDay),
+      if (orderId != null && !title.contains(orderId)) 'Pesanan #$orderId',
     ].join(' · ');
     return Semantics(
       container: true,
@@ -626,20 +726,7 @@ class LedgerTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: <Widget>[
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: credit ? tones.goldTint : tones.muted,
-                  shape: BoxShape.circle,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Image(
-                    image: ledgerArt(entry.kind),
-                    width: 30,
-                    height: 30,
-                  ),
-                ),
-              ),
+              LedgerArtTile(image: ledgerArt(entry.kind)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -667,16 +754,23 @@ class LedgerTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
-                  Text(
-                    credit
-                        ? '+${groupThousands(entry.amount)}'
-                        : groupThousands(entry.amount),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: credit ? tones.success : tones.text,
-                      fontFeatures: tabularFigures,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        credit
+                            ? '+${groupThousands(entry.amount)}'
+                            : '−${groupThousands(-entry.amount)}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: credit ? tones.success : tones.danger,
+                          fontFeatures: tabularFigures,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Image(image: HubArt.coin, width: 14, height: 14),
+                    ],
                   ),
                   if (showBalance)
                     Text(
@@ -688,6 +782,110 @@ class LedgerTile extends StatelessWidget {
                       ),
                     ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kotak seni 40 dp berlatar redup untuk baris riwayat.
+class LedgerArtTile extends StatelessWidget {
+  /// Membuat kotak berisi [image].
+  const LedgerArtTile({super.key, required this.image});
+
+  /// Seni 3D sumber entri.
+  final ImageProvider image;
+
+  @override
+  Widget build(BuildContext context) {
+    final tones = HubTones.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tones.muted,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Image(image: image, width: 30, height: 30),
+      ),
+    );
+  }
+}
+
+/// Baris riwayat untuk hadiah produk (bukan Kelopak): sumber, tanggal, dan
+/// lencana "Hadiah produk".
+class GiftLedgerTile extends StatelessWidget {
+  /// Membuat baris [gift].
+  const GiftLedgerTile({super.key, required this.gift});
+
+  /// Hadiah produk.
+  final PendingGift gift;
+
+  @override
+  Widget build(BuildContext context) {
+    final tones = HubTones.of(context);
+    final title = '${gift.source.label}: produk gratis';
+    return Semantics(
+      container: true,
+      label: '$title, hadiah produk, ${wibDateLabel(gift.wonDay)}',
+      excludeSemantics: true,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: <Widget>[
+              LedgerArtTile(
+                image: gift.source == GiftSource.wheel
+                    ? HubArt.wheel
+                    : HubArt.calendar,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: tones.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      wibDateLabel(gift.wonDay),
+                      style: TextStyle(fontSize: 12, color: tones.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: tones.goldTint,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    'Hadiah produk',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tones.onGoldTint,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

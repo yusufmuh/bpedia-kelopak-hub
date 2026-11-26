@@ -223,6 +223,57 @@ void main() {
       expect(fixture.host.navigations.last, 'cart');
     });
 
+    test(
+      'a hidden mission page leaves the celebration to whoever shows it first',
+      () async {
+        final fixture = await openHub();
+        final c = fixture.controller;
+        final game = KelopakMissionController(c)..visible = false;
+        addTearDown(() {
+          game.dispose();
+          c.dispose();
+        });
+        Future<void> completeMission(
+          String orderId,
+          String code,
+          int price,
+          int quantity,
+        ) async {
+          final quote = c.quote(
+            CheckoutRequest(
+              lines: <CheckoutLine>[
+                CheckoutLine(
+                  productCode: code,
+                  unitPrice: price,
+                  quantity: quantity,
+                ),
+              ],
+              shippingFee: 9000,
+              useKelopak: false,
+            ),
+          );
+          await c.commitOrder(orderId, quote);
+          await c.completeOrder(orderId);
+          await Future<void>.delayed(Duration.zero);
+        }
+
+        await completeMission('BP-1', 'P39A06S01000007', 26000, 3);
+        expect(game.state.celebration, isNull);
+        final first = c.vouchers.single;
+        expect(c.claimMissionCelebration(first.id), isTrue);
+        game.visible = true;
+        expect(game.state.celebration, isNull);
+
+        game.visible = false;
+        await completeMission('BP-2', 'P21F02C01000031', 49091, 3);
+        expect(game.state.celebration, isNull);
+        game.visible = true;
+        expect(game.state.celebration?.stage.number, 2);
+        final second = c.vouchers.firstWhere((v) => v.id != first.id);
+        expect(c.claimMissionCelebration(second.id), isFalse);
+      },
+    );
+
     test('an order completed elsewhere raises the celebration once', () async {
       final fixture = await openHub();
       final c = fixture.controller;
@@ -293,19 +344,32 @@ void main() {
       },
     );
 
-    test('guests see the products but cannot add them', () async {
-      final fixture = await openHub(loggedIn: false);
-      final game = KelopakMissionController(fixture.controller);
-      addTearDown(() {
-        game.dispose();
-        fixture.controller.dispose();
-      });
+    test(
+      'guests fill the cart without login but get no mission progress',
+      () async {
+        final fixture = await openHub(loggedIn: false);
+        final game = KelopakMissionController(fixture.controller);
+        addTearDown(() {
+          game.dispose();
+          fixture.controller.dispose();
+        });
 
-      expect(game.state.signedIn, isFalse);
-      expect(game.state.products, isNotEmpty);
-      expect(await game.addToCart('P39A06S01000007'), isFalse);
-      expect(fixture.host.navigations, <String>['login']);
-    });
+        expect(game.state.signedIn, isFalse);
+        expect(game.state.products, isNotEmpty);
+        expect(await game.addToCart('P39A06S01000007'), isTrue);
+        await game.setQuantity('P39A06S01000007', 2);
+        expect(fixture.host.navigations, isEmpty);
+        expect(
+          fixture.host.cartLines.single,
+          isA<CheckoutLine>()
+              .having((line) => line.productCode, 'code', 'P39A06S01000007')
+              .having((line) => line.quantity, 'quantity', 2),
+        );
+        expect(game.state.signedIn, isFalse);
+        expect(fixture.controller.vouchers, isEmpty);
+        expect(fixture.controller.missionIssuedCount, 0);
+      },
+    );
   });
 
   test('the controllers stop listening after dispose', () async {

@@ -15,9 +15,12 @@ export 'src/ui/how_to_sheet.dart' show KelopakHowTo, showKelopakHowTo;
 export 'src/ui/hub_art.dart';
 export 'src/ui/hub_widgets.dart'
     show
+        GiftLedgerTile,
         GiftProductImage,
         GiftStatusChip,
+        LedgerArtTile,
         LedgerTile,
+        VoucherTeaserTicket,
         VoucherTicket,
         VoucherTicketState;
 export 'src/ui/kelopak_navigation.dart';

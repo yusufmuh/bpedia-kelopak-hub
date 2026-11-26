@@ -168,7 +168,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.bySemanticsLabel(RegExp(r'^Check-in Harian\. Klaim \+1$')),
+      find.bySemanticsLabel(RegExp(r'^Check-in Harian\. \+1 Kelopak$')),
       findsOneWidget,
     );
     expect(

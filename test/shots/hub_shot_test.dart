@@ -7,6 +7,19 @@ import '../ui/hub_harness.dart';
 
 const Size _long = Size(390, 1900);
 
+/// Aksi kepala seperti yang dipasang app (Notifikasi dan Keranjang).
+List<Widget> _hostActions() => <Widget>[
+  for (final (icon, tip) in const <(IconData, String)>[
+    (Icons.notifications_none_rounded, 'Notifikasi'),
+    (Icons.shopping_bag_outlined, 'Keranjang'),
+  ])
+    IconButton(
+      tooltip: tip,
+      onPressed: () {},
+      icon: Badge(label: const Text('3'), child: Icon(icon)),
+    ),
+];
+
 void main() {
   for (final brightness in Brightness.values) {
     final tone = brightness == Brightness.light ? 'terang' : 'gelap';
@@ -22,7 +35,11 @@ void main() {
       );
       await shot(
         tester,
-        hubApp(fixture, home: const RewardsHubPage(), brightness: brightness),
+        hubApp(
+          fixture,
+          home: RewardsHubPage(actions: _hostActions()),
+          brightness: brightness,
+        ),
         name: 'hub_layar_$tone',
       );
     });
@@ -89,7 +106,7 @@ void main() {
         tester,
         hubApp(fixture, home: const RewardsHubPage(), brightness: brightness),
       );
-      await tester.tap(find.text('Cara pakai').first);
+      await tester.tap(find.byTooltip('Cara pakai'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
       await settleImages(tester, rounds: 3);

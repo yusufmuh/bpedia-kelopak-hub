@@ -53,9 +53,8 @@ class KelopakWalletStrip extends StatelessWidget {
                       ? 'Kelopak'
                       : kelopakLabel(balance),
                   caption: guest || balance == 0
-                      ? 'Kumpulkan, 1 = Rp100'
+                      ? '1 Kelopak = ${kelopakRupiah(1)}'
                       : 'senilai ${kelopakRupiah(balance)}',
-                  emphasis: !guest && balance > 0,
                   onTap: () => _open(context, c, KelopakPaths.ledger),
                 ),
               ),
@@ -65,8 +64,7 @@ class KelopakWalletStrip extends StatelessWidget {
                 child: _Cell(
                   art: HubArt.ticket,
                   value: vouchers == 0 ? 'Voucher' : '$vouchers voucher',
-                  caption: vouchers == 0 ? 'Dari Misi Belanja' : 'Siap dipakai',
-                  emphasis: vouchers > 0,
+                  caption: vouchers == 0 ? 'dari Misi Belanja' : 'siap dipakai',
                   onTap: () => _open(context, c, KelopakPaths.vouchers),
                 ),
               ),
@@ -76,8 +74,7 @@ class KelopakWalletStrip extends StatelessWidget {
                 child: _Cell(
                   art: HubArt.gift,
                   value: gifts == 0 ? 'Hadiah' : '$gifts hadiah',
-                  caption: gifts == 0 ? 'Belum ada' : 'Menunggu',
-                  emphasis: gifts > 0,
+                  caption: gifts == 0 ? 'belum ada' : 'menunggu',
                   dot: gifts > 0,
                   onTap: () {
                     if (!c.ensureLoggedIn()) return;
@@ -108,7 +105,6 @@ class _Cell extends StatelessWidget {
     required this.value,
     required this.caption,
     required this.onTap,
-    this.emphasis = false,
     this.dot = false,
   });
 
@@ -116,7 +112,6 @@ class _Cell extends StatelessWidget {
   final String value;
   final String caption;
   final VoidCallback onTap;
-  final bool emphasis;
   final bool dot;
 
   @override
@@ -129,51 +124,51 @@ class _Cell extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 56),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Row(
             children: <Widget>[
-              Row(
+              Stack(
+                clipBehavior: Clip.none,
                 children: <Widget>[
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: <Widget>[
-                      Image(image: art, width: 20, height: 20),
-                      if (dot)
-                        const PositionedDirectional(
-                          top: -3,
-                          end: -3,
-                          child: ReadyDot(size: 9),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
+                  Image(image: art, width: 24, height: 24),
+                  if (dot)
+                    const PositionedDirectional(
+                      top: -3,
+                      end: -3,
+                      child: ReadyDot(size: 9),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Text(
                       value,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
                         height: 17 / 13,
                         fontWeight: FontWeight.w700,
-                        color: emphasis ? tones.brandStrong : tones.text,
+                        color: tones.text,
                         fontFeatures: tabularFigures,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                caption,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  height: 14 / 11,
-                  color: tones.textMuted,
-                  fontFeatures: tabularFigures,
+                    const SizedBox(height: 1),
+                    Text(
+                      caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 14 / 11,
+                        color: tones.textMuted,
+                        fontFeatures: tabularFigures,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

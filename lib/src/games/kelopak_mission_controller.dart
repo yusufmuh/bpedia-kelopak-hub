@@ -31,6 +31,8 @@ class KelopakMissionController extends misi.MissionController
 
   late final StreamSubscription<KelopakEvent> _events;
   misi.MissionCelebration? _celebration;
+  (String, misi.MissionCelebration)? _waitingCelebration;
+  bool _visible = true;
   bool _busy = false;
   misi.MissionViewState? _cached;
 
@@ -39,12 +41,36 @@ class KelopakMissionController extends misi.MissionController
     final stages = kelopak.missionStages;
     final index = event.stageNumber - 1;
     if (index < 0 || index >= stages.length) return;
-    _celebration = misi.MissionCelebration(
-      stage: stages[index],
-      voucher: event.voucher.asMissionVoucher,
-      nextStage: index + 1 < stages.length ? stages[index + 1] : null,
+    _waitingCelebration = (
+      event.voucher.id,
+      misi.MissionCelebration(
+        stage: stages[index],
+        voucher: event.voucher.asMissionVoucher,
+        nextStage: index + 1 < stages.length ? stages[index + 1] : null,
+      ),
     );
+    _takeCelebration();
     _cached = null;
+  }
+
+  /// Halaman misi sedang tampil paling atas (diatur `KelopakMissionScreen`).
+  /// Saat tersembunyi, perayaan ditahan; bila lembar "Misi tuntas" lain
+  /// sudah tampil lebih dulu, perayaan halaman ini dibuang.
+  bool get visible => _visible;
+
+  set visible(bool value) {
+    if (_visible == value) return;
+    _visible = value;
+    _cached = null;
+  }
+
+  void _takeCelebration() {
+    final waiting = _waitingCelebration;
+    if (waiting == null || !_visible) return;
+    _waitingCelebration = null;
+    if (kelopak.claimMissionCelebration(waiting.$1)) {
+      _celebration = waiting.$2;
+    }
   }
 
   @override
@@ -54,6 +80,7 @@ class KelopakMissionController extends misi.MissionController
   misi.MissionViewState get state => _cached ??= _build();
 
   misi.MissionViewState _build() {
+    _takeCelebration();
     final products = <misi.MissionProduct>[
       for (final product in kelopak.missionProducts) _missionProduct(product),
     ];
@@ -122,9 +149,10 @@ class KelopakMissionController extends misi.MissionController
     notifyListeners();
   }
 
+  /// Tamu boleh mengisi keranjang (KEPUTUSAN-V3 §5); progres dan voucher
+  /// misi tetap menunggu masuk, dan halaman misi menampilkan ajakannya.
   @override
   Future<bool> addToCart(String code) async {
-    if (!kelopak.ensureLoggedIn()) return false;
     final current = host;
     if (current == null) return false;
     _setBusy(true);
@@ -138,7 +166,7 @@ class KelopakMissionController extends misi.MissionController
   @override
   Future<void> setQuantity(String code, int quantity) async {
     final current = host;
-    if (current == null || !kelopak.ensureLoggedIn()) return;
+    if (current == null) return;
     final actions = gameActions;
     if (actions != null) {
       await actions.setCartQuantity(code, quantity);

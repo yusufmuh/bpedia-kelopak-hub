@@ -41,6 +41,22 @@ String groupThousands(int value) {
   return buffer.toString();
 }
 
+/// Rupiah ringkas untuk ubin sempit: `40000` "Rp40rb", `12500` "Rp12,5rb",
+/// `1500000` "Rp1,5jt", di bawah seribu tetap utuh ("Rp900").
+String rupiahCompact(int value) {
+  final sign = value < 0 ? '-' : '';
+  final abs = value.abs();
+  String scaled(int unit, String suffix) {
+    final whole = abs ~/ unit;
+    final tenth = (abs % unit) * 10 ~/ unit;
+    return tenth == 0 ? '$whole$suffix' : '$whole,$tenth$suffix';
+  }
+
+  if (abs >= 1000000) return '${sign}Rp${scaled(1000000, 'jt')}';
+  if (abs >= 1000) return '${sign}Rp${scaled(1000, 'rb')}';
+  return '${sign}Rp$abs';
+}
+
 /// "12 Kelopak".
 String kelopakLabel(int amount) => '${groupThousands(amount)} Kelopak';
 

@@ -19,12 +19,20 @@ import '../ui/kelopak_navigation.dart';
 
 /// Membuka lembar hasil "Misi tuntas" untuk [voucher] yang baru terbit.
 /// [onViewVouchers] mengganti aksi bawaan (membuka `/hadiah/voucher`).
+///
+/// Tiap voucher dirayakan sekali: bila halaman Misi Belanja yang sedang
+/// tampil sudah merayakannya (`KelopakController.claimMissionCelebration`),
+/// lembar ini tidak dibuka lagi.
 Future<void> showMissionCompleteCelebration(
   BuildContext context, {
   required KelopakVoucher voucher,
   int? stageNumber,
   VoidCallback? onViewVouchers,
 }) {
+  final controller = KelopakScope.maybeRead(context);
+  if (controller != null && !controller.claimMissionCelebration(voucher.id)) {
+    return Future<void>.value();
+  }
   final stage = stageNumber ?? voucher.stageNumber ?? 1;
   return showResultSheet<void>(
     context,
@@ -69,8 +77,8 @@ Future<void> showMissionCompleteCelebration(
 
 /// Mendengarkan `MissionCompletedEvent` dari `KelopakScope` terdekat dan
 /// menampilkan [showMissionCompleteCelebration]. Pasang di bawah navigator
-/// host (atau beri [navigatorKey]); halaman Misi Belanja punya perayaan
-/// sendiri, jadi matikan [enabled] saat halaman itu tampil bila perlu.
+/// host (atau beri [navigatorKey]). Bila halaman Misi Belanja sedang tampil
+/// paling atas, perayaan halaman itu yang muncul dan lembar ini diam.
 class MissionCompleteCelebration extends StatefulWidget {
   /// Membungkus [child].
   const MissionCompleteCelebration({

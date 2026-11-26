@@ -197,7 +197,7 @@ void main() {
       expect(engine.balance, 400);
       expect(engine.ledger.last.amount, -100);
       expect(engine.ledger.last.kind, LedgerKind.checkoutSpend);
-      expect(engine.ledger.last.note, 'Dipakai di pesanan BP-1');
+      expect(engine.ledger.last.note, 'Dipakai di pesanan #BP-1');
     });
 
     test('voucher minimum is checked before the Kelopak discount', () {
@@ -307,7 +307,7 @@ void main() {
       expect(cancellation.gifts.single.status, GiftStatus.pending);
       expect(engine.balance, 300);
       expect(engine.ledger.last.kind, LedgerKind.checkoutRefund);
-      expect(engine.ledger.last.note, 'Dikembalikan dari pesanan BP-1');
+      expect(engine.ledger.last.note, 'Dikembalikan dari pesanan #BP-1');
       expect(engine.ledger.last.orderId, 'BP-1');
       expect(engine.activeVouchers(saturday + 1), hasLength(1));
       expect(engine.pendingGifts, hasLength(1));

@@ -120,6 +120,9 @@ class _KelopakMissionScreenState extends State<KelopakMissionScreen> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      MissionsPage(controller: _controller!, onBack: widget.onBack);
+  Widget build(BuildContext context) {
+    final controller = _controller!
+      ..visible = ModalRoute.isCurrentOf(context) ?? true;
+    return MissionsPage(controller: controller, onBack: widget.onBack);
+  }
 }

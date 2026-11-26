@@ -53,6 +53,35 @@ final class KelopakPolicy {
   int get hashCode => Object.hash(rupiahPerKelopak, redeemShareBp);
 }
 
+/// Voucher kampanye yang diumumkan tetapi belum bisa diklaim (mis. event
+/// tanggal kembar). Tampil di Voucherku sebagai "Akan datang" sampai
+/// [opensDay]; klaimnya tetap lewat `KelopakController.claimPromoVoucher`.
+final class KelopakVoucherTeaser {
+  const KelopakVoucherTeaser({
+    required this.promoId,
+    required this.title,
+    required this.amount,
+    required this.minSpend,
+    required this.opensDay,
+  }) : assert(amount > 0, 'amount must be positive'),
+       assert(minSpend >= 0, 'minSpend must not be negative');
+
+  /// Kunci promo, sama dengan `promoId` saat diklaim.
+  final String promoId;
+
+  /// Nama event ("Tanggal Kembar 12.12").
+  final String title;
+
+  /// Potongan rupiah.
+  final int amount;
+
+  /// Minimal belanja barang.
+  final int minSpend;
+
+  /// Hari WIB pertama voucher bisa diklaim.
+  final int opensDay;
+}
+
 /// Satu kampanye hadiah: aturan tukar, Roda Sabtu, Misi Belanja, dan hadiah
 /// Check-in hari ke-30. Aturan Check-in Harian sendiri tetap di
 /// `CheckInRules` modul `daily_checkin`.
@@ -65,6 +94,7 @@ final class KelopakCampaign {
     this.wheelProductCodes = const <String>[],
     this.missionStages = demoMissionStages,
     this.checkIn30ProductCode,
+    this.upcomingVouchers = const <KelopakVoucherTeaser>[],
   }) : assert(wheelQuota >= 0, 'wheelQuota must not be negative');
 
   /// Kampanye contoh (nilai demo modul, tanpa kode produk).
@@ -92,6 +122,9 @@ final class KelopakCampaign {
 
   /// Kode produk hadiah Check-in hari ke-30; null bila belum ditentukan.
   final String? checkIn30ProductCode;
+
+  /// Voucher event yang diumumkan lebih dulu ("Akan datang" di Voucherku).
+  final List<KelopakVoucherTeaser> upcomingVouchers;
 
   /// Nomor pekan (Senin sampai Minggu) dari hari WIB [wibDay].
   static int weekOf(int wibDay) => (wibDay + 3) ~/ DateTime.daysPerWeek;

@@ -58,7 +58,9 @@ void main() {
     final opened = <String>[];
     await pumpShot(tester, hubApp(fixture, home: _home(opened)), pixelRatio: 1);
 
-    expect(find.text('Klaim +1'), findsOneWidget);
+    expect(find.text('Kumpulkan Kelopak, potong belanjamu'), findsOneWidget);
+    expect(find.text('+1 Kelopak'), findsOneWidget);
+    expect(find.text('Buka Sabtu'), findsOneWidget);
     expect(find.text('1 siap'), findsOneWidget);
     await tester.tap(find.text('Check-in'));
     await tester.tap(find.text('Roda Sabtu'));
@@ -74,7 +76,14 @@ void main() {
     await tester.runAsync(fixture.controller.claimCheckIn);
     await tester.pump();
     expect(find.text('Sudah klaim'), findsOneWidget);
-    expect(find.text('Lihat semua'), findsOneWidget);
+    expect(find.text('1 siap'), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics && widget.properties.label == 'Lihat semua',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('MissionCompleteCelebration shows the voucher once the order is '
@@ -123,5 +132,45 @@ void main() {
     await tester.tap(find.text('Lihat voucher'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(opened, <String>[KelopakPaths.vouchers]);
+  });
+
+  testWidgets('MissionCompleteCelebration stays quiet when the mission page '
+      'already celebrates', (tester) async {
+    final fixture = (await tester.runAsync(openHub))!;
+    final c = fixture.controller;
+    addTearDown(c.dispose);
+    await pumpShot(
+      tester,
+      hubApp(
+        fixture,
+        home: const MissionCompleteCelebration(child: KelopakMissionScreen()),
+      ),
+      pixelRatio: 1,
+    );
+
+    await tester.runAsync(() async {
+      final quote = c.quote(
+        CheckoutRequest(
+          lines: const <CheckoutLine>[
+            CheckoutLine(
+              productCode: 'P39A06S01000007',
+              unitPrice: 26000,
+              quantity: 4,
+            ),
+          ],
+          shippingFee: 9000,
+          useKelopak: false,
+        ),
+      );
+      await c.commitOrder('BP-8', quote);
+      await c.completeOrder('BP-8');
+    });
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(find.text('Tahap 1 Misi Belanja selesai'), findsOneWidget);
+    expect(find.text('Nanti saja'), findsNothing);
+    expect(c.claimMissionCelebration(c.vouchers.single.id), isFalse);
   });
 }

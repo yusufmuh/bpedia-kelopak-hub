@@ -16,6 +16,10 @@ import '../ui/rewards_hub_page.dart'
 /// Satu-satunya blok pesta di Beranda: kartu gradasi pink dengan Bipy
 /// berjalan dan tiga kartu mini game. Ketuk kartu mini membuka game; ketuk
 /// latar membuka zona Hadiah. Membaca `KelopakScope` terdekat.
+const List<Shadow> _textShadow = <Shadow>[
+  Shadow(color: Color(0x736B1439), offset: Offset(0, 1), blurRadius: 3),
+];
+
 class KelopakGameStrip extends StatelessWidget {
   /// Membuat strip. [margin] bawaan 16 kiri-kanan.
   const KelopakGameStrip({
@@ -89,37 +93,32 @@ class KelopakGameStrip extends StatelessWidget {
                                   const Expanded(
                                     child: Text(
                                       'Main bareng Bipy',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 16,
                                         height: 22 / 16,
                                         fontWeight: FontWeight.w800,
                                         color: Colors.white,
-                                        shadows: <Shadow>[
-                                          Shadow(
-                                            color: Color(0x556B1439),
-                                            offset: Offset(0, 1),
-                                            blurRadius: 3,
-                                          ),
-                                        ],
+                                        shadows: _textShadow,
                                       ),
                                     ),
                                   ),
-                                  Text(
-                                    readyCount > 0
-                                        ? '$readyCount siap'
-                                        : 'Lihat semua',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right_rounded,
-                                    size: 18,
-                                    color: Colors.white,
-                                  ),
+                                  const SizedBox(width: 6),
+                                  _MoreBadge(readyCount: readyCount),
                                 ],
+                              ),
+                              const Text(
+                                'Kumpulkan Kelopak, potong belanjamu',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  height: 14 / 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  shadows: _textShadow,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               IntrinsicHeight(
@@ -136,7 +135,6 @@ class KelopakGameStrip extends StatelessWidget {
                                       Expanded(
                                         child: _MiniGameCard(
                                           status: statuses[i],
-                                          guest: !c.isLoggedIn,
                                         ),
                                       ),
                                     ],
@@ -159,13 +157,65 @@ class KelopakGameStrip extends StatelessWidget {
   }
 }
 
+class _MoreBadge extends StatelessWidget {
+  const _MoreBadge({required this.readyCount});
+
+  final int readyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final chevron = Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: const Color(0x33FFFFFF),
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0x80FFFFFF)),
+      ),
+      child: const Icon(
+        Icons.chevron_right_rounded,
+        size: 20,
+        color: Colors.white,
+      ),
+    );
+    return Semantics(
+      label: readyCount > 0 ? '$readyCount siap' : 'Lihat semua',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (readyCount > 0) ...<Widget>[
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: FestivePalette.goldLight,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                child: Text(
+                  '$readyCount siap',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    height: 14 / 11,
+                    fontWeight: FontWeight.w700,
+                    color: FestivePalette.onGold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          chevron,
+        ],
+      ),
+    );
+  }
+}
+
 class _MiniGameCard extends StatelessWidget {
-  const _MiniGameCard({required this.status, required this.guest});
+  const _MiniGameCard({required this.status});
 
   final KelopakGameStatus status;
-
-  /// Tamu belum pernah klaim: jangan tulis "Sudah klaim".
-  final bool guest;
 
   static String _shortTitle(KelopakGame game) => switch (game) {
     KelopakGame.checkIn => 'Check-in',
@@ -173,28 +223,17 @@ class _MiniGameCard extends StatelessWidget {
     KelopakGame.mission => 'Misi',
   };
 
-  String get _line {
-    switch (status.game) {
-      case KelopakGame.checkIn:
-        if (guest) return '+1 tiap hari';
-        return status.ready ? 'Klaim +1' : 'Sudah klaim';
-      case KelopakGame.wheel:
-        return status.ready ? 'Putar sekarang' : status.headline;
-      case KelopakGame.mission:
-        return status.headline;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final tones = HubTones.of(context);
     final game = status.game;
     final art = Image(
       image: KelopakGameCard.artOf(game),
-      width: 34,
-      height: 34,
+      width: 20,
+      height: 20,
     );
     final progress = status.progress;
+    final value = status.value;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: tones.surface,
@@ -209,57 +248,60 @@ class _MiniGameCard extends StatelessWidget {
       ),
       child: Pressable(
         onTap: () => KelopakNavigation.openPath(context, status.path),
-        semanticLabel: '${game.title}. $_line',
+        semanticLabel: '${game.title}. $value',
         child: Stack(
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+              padding: const EdgeInsets.fromLTRB(7, 8, 5, 9),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   if (game == KelopakGame.wheel)
                     SlowSpin(child: art)
                   else
                     Bobbing(
-                      amplitude: 3,
+                      amplitude: 2,
                       phase: game == KelopakGame.checkIn ? 0 : 0.5,
                       child: art,
                     ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _shortTitle(game),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 14 / 11,
-                      fontWeight: FontWeight.w700,
-                      color: tones.text,
+                  const SizedBox(height: 6),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      _shortTitle(game),
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 14 / 11,
+                        fontWeight: FontWeight.w600,
+                        color: tones.textMuted,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   _ReadyPulse(
                     active: status.ready,
-                    child: Text(
-                      _line,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        height: 13 / 10,
-                        fontWeight: FontWeight.w600,
-                        color: status.ready
-                            ? tones.brandStrong
-                            : tones.textMuted,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 16 / 12,
+                          fontWeight: FontWeight.w800,
+                          color: status.ready ? tones.brandStrong : tones.text,
+                        ),
                       ),
                     ),
                   ),
                   if (game == KelopakGame.mission &&
                       progress != null) ...<Widget>[
-                    const SizedBox(height: 4),
-                    MiniProgressBar(value: progress),
+                    const SizedBox(height: 6),
+                    MiniProgressBar(value: progress, height: 4),
                   ],
                 ],
               ),
@@ -320,9 +362,12 @@ class _ReadyPulseState extends State<_ReadyPulse>
 
   @override
   Widget build(BuildContext context) => ScaleTransition(
+    alignment: Directionality.of(context) == TextDirection.rtl
+        ? Alignment.centerRight
+        : Alignment.centerLeft,
     scale: Tween<double>(
       begin: 1,
-      end: 1.08,
+      end: 1.06,
     ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
     child: widget.child,
   );

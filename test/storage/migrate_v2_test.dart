@@ -16,6 +16,7 @@ void main() {
     expect(state.balance, 7);
     expect(state.ledger, hasLength(3));
     expect(state.ledger.last.orderId, 'BP-20261128-0001');
+    expect(state.ledger.last.note, 'Dipakai di pesanan #BP-20261128-0001');
     expect(state.ledger.first.orderId, isNull);
     expect(state.ledgerSeq, 3);
     expect(state.streak, 1);

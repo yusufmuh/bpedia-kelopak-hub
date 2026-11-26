@@ -36,7 +36,12 @@ void main() {
       );
 
       expect(find.bySemanticsLabel('Saldo 31 Kelopak'), findsOneWidget);
-      expect(find.text('senilai Rp3.100 · 1 Kelopak = Rp100'), findsOneWidget);
+      expect(find.text('senilai Rp3.100'), findsOneWidget);
+      expect(find.text('1 Kelopak = Rp100'), findsNWidgets(2));
+      expect(find.text('Hari ini'), findsOneWidget);
+      expect(find.text('Main hari ini'), findsOneWidget);
+      expect(find.text('Kelopak, voucher, dan produk gratis'), findsOneWidget);
+      expect(find.text('1 siap'), findsOneWidget);
       expect(find.byType(KelopakGameCard), findsNWidgets(3));
       expect(find.text('Klaim +1 Kelopak'), findsOneWidget);
       expect(find.text('Buka Sabtu · 2 hari lagi'), findsOneWidget);
@@ -47,6 +52,40 @@ void main() {
       expect(find.byType(LedgerTile), findsNWidgets(3));
       expect(find.text('Check-in hari ke-31'), findsOneWidget);
       expect(find.text('Cara kerja Kelopak'), findsOneWidget);
+    });
+
+    testWidgets('the header takes host actions and the week strip opens '
+        'Check-in', (tester) async {
+      final fixture = await _rich(tester);
+      final opened = <String>[];
+      var bell = 0;
+      await _pump(
+        tester,
+        hubApp(
+          fixture,
+          home: KelopakNavigation(
+            open: (context, location) => opened.add(location),
+            child: RewardsHubPage(
+              actions: <Widget>[
+                IconButton(
+                  tooltip: 'Notifikasi',
+                  onPressed: () => bell++,
+                  icon: const Icon(Icons.notifications_none_rounded),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byTooltip('Notifikasi'), findsOneWidget);
+      expect(find.byTooltip('Cara pakai'), findsOneWidget);
+      await tester.tap(find.byTooltip('Notifikasi'));
+      expect(bell, 1);
+      expect(find.text('Hari 29'), findsOneWidget);
+      await tester.tap(find.text('Hari 29'));
+      await tester.tap(find.text('Hari ini'));
+      expect(opened, <String>[KelopakPaths.checkIn]);
     });
 
     testWidgets('a game card opens its game page through kelopakRoutes', (
@@ -133,7 +172,9 @@ void main() {
       );
 
       expect(find.text('Belum ada riwayat'), findsOneWidget);
-      expect(find.text('Belum ada voucher'), findsOneWidget);
+      expect(find.text('Belum ada voucher'), findsNothing);
+      expect(find.byType(VoucherTeaserTicket), findsOneWidget);
+      expect(find.text('Tanggal Kembar 12.12'), findsOneWidget);
       expect(find.text('Hadiah menunggu (1)'), findsNothing);
 
       await tester.runAsync(fixture.controller.claimCheckIn);
@@ -149,7 +190,7 @@ void main() {
       final fixture = await _rich(tester);
       await _pump(tester, hubApp(fixture, home: const RewardsHubPage()));
 
-      await tester.tap(find.text('Cara pakai'));
+      await tester.tap(find.byTooltip('Cara pakai'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Cara pakai Kelopak'), findsOneWidget);
@@ -172,12 +213,17 @@ void main() {
       final fixture = await _rich(tester);
       await _pump(tester, hubApp(fixture, home: const MyGiftsPage()));
 
-      expect(find.text('Menunggu pesanan berikutnya (1)'), findsOneWidget);
-      expect(find.text('Sudah diterima (1)'), findsOneWidget);
-      expect(find.text('Pesanan BP-261107-0003'), findsOneWidget);
-      await tester.tap(find.text('Belanja'));
-      await tester.tap(find.text('Keranjang'));
-      expect(fixture.host.navigations, <String>['shop', 'cart']);
+      expect(find.text('1 hadiah menunggu'), findsOneWidget);
+      expect(find.textContaining('sebagai Rp0'), findsNothing);
+      expect(find.text('Menunggu dikirim'), findsWidgets);
+      expect(find.text('Riwayat kiriman'), findsOneWidget);
+      expect(find.text('Pesanan #BP-261107-0003'), findsOneWidget);
+      expect(find.text('Terlampir'), findsOneWidget);
+      expect(find.text('Diterima'), findsNWidgets(2));
+      await tester.tap(find.text('Belanja sekarang').first);
+      await tester.tap(find.text('Lihat keranjang'));
+      await tester.tap(find.text('Pesanan #BP-261107-0003'));
+      expect(fixture.host.navigations, <String>['shop', 'cart', 'cart']);
     });
 
     testWidgets('Hadiahku without gifts points to Roda Sabtu', (tester) async {
@@ -202,10 +248,30 @@ void main() {
       final fixture = await _rich(tester);
       await _pump(tester, hubApp(fixture, home: const VouchersPage()));
 
+      expect(find.text('Semua (3)'), findsOneWidget);
       expect(find.text('Bisa dipakai (2)'), findsOneWidget);
+      expect(find.text('Akan datang (1)'), findsOneWidget);
       expect(find.text('Riwayat (0)'), findsOneWidget);
-      expect(find.text('Rp12.000'), findsOneWidget);
+      expect(find.text('Voucher Misi Belanja tahap 1'), findsOneWidget);
+      expect(find.text('Tanggal Kembar 12.12'), findsOneWidget);
+      expect(find.text('Klaim mulai 12 Des 2026'), findsOneWidget);
+      expect(find.text('Segera'), findsOneWidget);
+      expect(find.text('Diskon'), findsNWidgets(3));
       expect(find.text('Berlaku s.d. 27 Nov 2026'), findsOneWidget);
+      expect(find.text('Sisa 2 hari'), findsOneWidget);
+      expect(find.text('Cara dapat voucher'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Ketentuan voucher'),
+        200,
+        scrollable: find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            )
+            .first,
+      );
+      expect(find.text('Satu voucher per pesanan.'), findsOneWidget);
 
       fixture.shiftDays(2);
       await tester.pump();
@@ -226,6 +292,9 @@ void main() {
       final all = find.byType(LedgerTile).evaluate().length;
       expect(all, fixture.controller.ledgerHistory.length);
       expect(find.text('Saldo 31'), findsOneWidget);
+      expect(find.bySemanticsLabel('Saldo 31 Kelopak'), findsOneWidget);
+      expect(find.textContaining('Masuk sejak'), findsOneWidget);
+      expect(find.textContaining('Dipakai sejak'), findsOneWidget);
 
       await tester.tap(find.text('Dipakai'));
       await tester.pump();
@@ -235,9 +304,19 @@ void main() {
       expect(find.byType(LedgerTile), findsNWidgets(spent));
       expect(spent, greaterThan(0));
 
-      await tester.tap(find.text('Didapat'));
+      await tester.tap(find.text('Masuk'));
       await tester.pump();
       expect(find.byType(LedgerTile), findsNWidgets(all - spent));
+      expect(find.byType(GiftLedgerTile), findsNothing);
+
+      await tester.tap(find.text('Hadiah'));
+      await tester.pump();
+      expect(find.byType(LedgerTile), findsNothing);
+      expect(
+        find.byType(GiftLedgerTile),
+        findsNWidgets(fixture.controller.gifts.length),
+      );
+      expect(find.text('Hadiah produk'), findsWidgets);
     });
 
     testWidgets('guests are asked to log in on every sub page', (tester) async {

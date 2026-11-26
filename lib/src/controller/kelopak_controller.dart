@@ -359,6 +359,28 @@ class KelopakController extends ChangeNotifier {
   RedeemProblem? voucherProblemFor(KelopakVoucher voucher, int goodsSubtotal) =>
       voucher.problemFor(orderId: '', subtotal: goodsSubtotal, today: today);
 
+  final Set<String> _celebratedMissionVouchers = <String>{};
+
+  /// Menandai perayaan "Misi tuntas" untuk voucher [voucherId] sudah tampil.
+  /// True hanya untuk pemanggil pertama, sehingga halaman Misi Belanja dan
+  /// `showMissionCompleteCelebration` tidak merayakan voucher yang sama dua
+  /// kali.
+  bool claimMissionCelebration(String voucherId) =>
+      _celebratedMissionVouchers.add(voucherId);
+
+  /// Voucher event yang belum dibuka hari ini dan belum pernah diklaim,
+  /// urut tanggal buka.
+  List<KelopakVoucherTeaser> get upcomingVouchers {
+    final claimed = <String>{for (final voucher in vouchers) ?voucher.promoId};
+    return campaign.upcomingVouchers
+        .where(
+          (teaser) =>
+              teaser.opensDay > today && !claimed.contains(teaser.promoId),
+        )
+        .toList(growable: false)
+      ..sort((a, b) => a.opensDay.compareTo(b.opensDay));
+  }
+
   /// Apakah voucher promo [promoId] belum pernah diklaim.
   bool canClaimPromoVoucher(String promoId) =>
       _view.canClaimPromoVoucher(promoId);

@@ -93,4 +93,17 @@ final KelopakCampaign demoCampaign = KelopakCampaign(
       ),
   ],
   checkIn30ProductCode: 'P39A06S01000089',
+  upcomingVouchers: <KelopakVoucherTeaser>[
+    KelopakVoucherTeaser(
+      promoId: 'tanggal-kembar-1212',
+      title: 'Tanggal Kembar 12.12',
+      amount: 12000,
+      minSpend: 120000,
+      opensDay: DateTime.utc(
+        2026,
+        12,
+        12,
+      ).difference(DateTime.utc(1970)).inDays,
+    ),
+  ],
 );

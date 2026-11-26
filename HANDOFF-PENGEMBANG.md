@@ -37,9 +37,11 @@ KelopakScope(
 ```
 
 1. **Host**: implementasikan `KelopakHost` (login, katalog `productOf`, keranjang `cartLines`/`addToCart`, `openShop/Cart/Product/Login`, `playCue`, `reminder`, `onEvent`) dan sebaiknya `KelopakGameActions` (`openCheckout`, `openOrder`, `setCartQuantity`, `soundOn`, `setSoundOn`). Beri tahu perubahan login/keranjang lewat `changes`.
-2. **Rute**: daftarkan `kelopakRoutes` (atau `kelopakRouteFor(location)`) di router app. Bila `/hadiah` adalah tab, bungkus pohon dengan `KelopakNavigation(open: (context, location) => router.go(context, parseAppRoute(location)), child: ...)` supaya `/hadiah` memilih tab dan jalur lain ditumpuk.
+2. **Rute dan tab Hadiah**: daftarkan `kelopakRoutes` (atau `kelopakRouteFor(location)`) di router app. Semua perpindahan di dalam hub lewat `KelopakNavigation.openPath`; tanpa `KelopakNavigation` hub memakai `Navigator.pushNamed`. Bila `/hadiah` adalah tab bilah bawah, bungkus pohon app dengan `KelopakNavigation(open: (context, location) => router.go(context, parseAppRoute(location)), child: ...)`: `/hadiah` memilih tab Hadiah (tidak menumpuk Zona Hadiah kedua), jalur lain (`/hadiah/checkin`, `/hadiah/voucher`, ...) ditumpuk di atas tab. Pasang `KelopakNavigation` di bawah `KelopakScope` dan di atas navigator agar halaman game dan lembar Cara pakai ikut memakainya.
+   Di tab Hadiah, beri kepala aksi host yang sama dengan Beranda: `RewardsHubPage(showBack: false, actions: [notifikasiBerlencana, keranjangBerlencana])`.
 3. **Beranda**: `KelopakWalletStrip()` (strip dompet) dan `KelopakGameStrip()` ("Main bareng Bipy").
-4. **Pesanan**: di checkout `controller.quote(...)` → `commitOrder(orderId, quote)`; transisi pesanan memanggil `shipOrder`, `completeOrder`, `cancelOrder`. Setelah `completeOrder` yang menerbitkan voucher, tampilkan `showMissionCompleteCelebration(context, voucher: completion.voucher!)` atau pasang `MissionCompleteCelebration` global.
+4. **Pesanan**: di checkout `controller.quote(...)` → `commitOrder(orderId, quote)`; transisi pesanan memanggil `shipOrder`, `completeOrder`, `cancelOrder`. Setelah `completeOrder` yang menerbitkan voucher, tampilkan `showMissionCompleteCelebration(context, voucher: completion.voucher!)` atau pasang `MissionCompleteCelebration` global. Tiap voucher dirayakan sekali (`KelopakController.claimMissionCelebration`): bila halaman Misi Belanja sedang tampil, perayaan halaman itu yang muncul; bila halaman misi tertutup halaman lain, lembar host yang muncul dan halaman misi tidak mengulanginya.
+   Tamu boleh menambah produk misi ke keranjang dari halaman Misi (KEPUTUSAN §5); progres dan voucher misi tetap menunggu masuk.
 5. **Peristiwa**: petakan `KelopakEvent.analyticsName/parameters` ke analitik dan `notice` ke kotak masuk.
 6. **Suara**: `GameCue` dari hub sama nama dengan cue modul; host memetakan ke berkas audio.
 
@@ -62,9 +64,10 @@ Di produksi `shipOrder`/`completeOrder` dipanggil sistem pesanan (header `X-Kelo
 
 ## 4. Menjalankan contoh
 
+Runner `example/android` dan `example/web` ikut repo.
+
 ```bash
 cd example
-flutter create --platforms=web,android .   # sekali, membuat runner (tidak dibawa repo)
 flutter run -d chrome
 ```
 
@@ -84,5 +87,8 @@ Tes UI ada di `test/ui/` (controller game, halaman, widget tanam, aksesibilitas)
 ## 6. Catatan terbuka
 
 - `RemoteKelopakBackend.claimPromoVoucher` masih mengirim `amount`, `minSpend`, `validDays`, `title`; server mengabaikannya (cukup `promoId`).
-- Kontras teks putih kecil di bagian paling terang hero pesta perlu dinilai bersama kit (`FestivePalette.hero`).
+- Teks putih kecil di hero memakai bayangan tipis (`heroTextShadow`) agar tetap terbaca di bagian paling terang `FestivePalette.hero`.
+- Judul bilah `GameScaffold` baru muncul setelah hero tergulir; Zona Hadiah tidak punya judul hero sehingga judul "Zona Hadiah" di bilah baru tampil saat digulir (perlu opsi kit).
+- Voucher event "Akan datang" berasal dari `KelopakCampaign.upcomingVouchers` (`KelopakVoucherTeaser`); app mengisinya di konfigurasi kampanye.
+- Lisensi paket belum ditetapkan pemilik.
 - Nilai kampanye (peluang, kuota, voucher, produk misi) adalah (demo).

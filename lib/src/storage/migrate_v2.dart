@@ -24,6 +24,8 @@ const String v2DocumentKey = 'bpedia_preview_state_v1';
 /// Kuota hadiah produk roda pada kampanye demo v2.
 const int _v2WheelStock = 1;
 
+/// Awalan catatan belanja v2 ("Dipakai di pesanan BP-..."); catatan v3
+/// menambahkan '#' sebelum nomor pesanan, dan keduanya diterima.
 const String _v2SpendNotePrefix = 'Dipakai di pesanan ';
 const String _v2ProductPrizeId = 'product';
 
@@ -110,13 +112,16 @@ LedgerEntry _ledgerEntryOf(Object? source) {
       !entry.note.startsWith(_v2SpendNotePrefix)) {
     return entry;
   }
+  var orderId = entry.note.substring(_v2SpendNotePrefix.length).trim();
+  if (orderId.startsWith('#')) orderId = orderId.substring(1);
+  if (orderId.isEmpty) return entry;
   return LedgerEntry(
     id: entry.id,
     wibDay: entry.wibDay,
     amount: entry.amount,
     kind: entry.kind,
-    note: entry.note,
-    orderId: entry.note.substring(_v2SpendNotePrefix.length),
+    note: 'Dipakai di pesanan #$orderId',
+    orderId: orderId,
   );
 }
 

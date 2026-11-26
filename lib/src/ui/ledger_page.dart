@@ -1,28 +1,36 @@
-/// Riwayat Kelopak (`/hadiah/riwayat`): ringkasan saldo, saring masuk/keluar,
-/// dan baris per bulan dengan saldo berjalan.
+/// Riwayat Kelopak (`/hadiah/riwayat`): hero saldo, ringkasan masuk/dipakai,
+/// saring Semua/Masuk/Dipakai/Hadiah, dan baris per bulan dengan saldo
+/// berjalan.
 library;
 
 import 'package:daily_checkin/daily_checkin.dart' show wibDateOf;
+import 'package:flutter/foundation.dart' show mergeSort;
 import 'package:flutter/material.dart';
 
 import '../controller/kelopak_scope.dart';
 import '../core/format.dart';
 import '../core/paths.dart';
+import '../domain/gifts.dart';
 import '../domain/ledger.dart';
+import '../kit/kit.dart';
+import 'hero_balance.dart';
 import 'hub_art.dart';
 import 'hub_widgets.dart';
 import 'kelopak_navigation.dart';
 
 /// Saringan riwayat.
 enum LedgerFilter {
-  /// Semua entri.
+  /// Semua entri, termasuk hadiah produk.
   all('Semua'),
 
   /// Hanya Kelopak masuk.
-  earned('Didapat'),
+  earned('Masuk'),
 
   /// Hanya Kelopak keluar.
-  spent('Dipakai');
+  spent('Dipakai'),
+
+  /// Hanya hadiah produk (Roda Sabtu, Check-in hari ke-30).
+  gifts('Hadiah');
 
   const LedgerFilter(this.label);
 
@@ -34,7 +42,11 @@ enum LedgerFilter {
     LedgerFilter.all => true,
     LedgerFilter.earned => entry.isCredit,
     LedgerFilter.spent => !entry.isCredit,
+    LedgerFilter.gifts => false,
   };
+
+  /// Apakah hadiah produk ikut tampil.
+  bool get showsGifts => this == LedgerFilter.all || this == LedgerFilter.gifts;
 }
 
 const List<String> _monthNames = <String>[
@@ -64,6 +76,9 @@ class LedgerPage extends StatefulWidget {
   State<LedgerPage> createState() => _LedgerPageState();
 }
 
+/// Satu baris tampil: entri Kelopak atau hadiah produk.
+typedef _Row = ({int day, LedgerLine? line, PendingGift? gift});
+
 class _LedgerPageState extends State<LedgerPage> {
   late LedgerFilter _filter = widget.initialFilter;
 
@@ -71,22 +86,29 @@ class _LedgerPageState extends State<LedgerPage> {
   Widget build(BuildContext context) {
     final c = KelopakScope.of(context);
     final tones = HubTones.of(context);
-    final Widget body;
-    if (!c.isLoggedIn) {
-      body = Center(
-        child: SingleChildScrollView(
-          child: HubEmptyState(
-            title: 'Masuk dulu, Babes',
-            message: 'Riwayat Kelopak tersimpan di akunmu.',
-            actionLabel: 'Masuk',
-            onAction: c.ensureLoggedIn,
+    final loggedIn = c.isLoggedIn;
+    final slivers = <Widget>[];
+    if (!loggedIn) {
+      slivers.add(
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: ColoredBox(
+            color: tones.surface,
+            child: HubEmptyState(
+              title: 'Masuk dulu, Babes',
+              message: 'Riwayat Kelopak tersimpan di akunmu.',
+              actionLabel: 'Masuk',
+              onAction: c.ensureLoggedIn,
+            ),
           ),
         ),
       );
     } else {
       final all = c.ledgerHistory;
+      final gifts = c.gifts;
       var earned = 0;
       var spent = 0;
+      int? since;
       for (final line in all) {
         final amount = line.entry.amount;
         if (amount > 0) {
@@ -94,19 +116,30 @@ class _LedgerPageState extends State<LedgerPage> {
         } else {
           spent -= amount;
         }
+        final day = line.entry.wibDay;
+        if (since == null || day < since) since = day;
       }
-      final lines = all.where((line) => _filter.accepts(line.entry)).toList();
-      final slivers = <Widget>[
-        SliverToBoxAdapter(
-          child: _Summary(balance: c.balance, earned: earned, spent: spent),
-        ),
-        SliverToBoxAdapter(
-          child: ColoredBox(
-            color: tones.surface,
+      final rows = <_Row>[
+        for (final line in all)
+          if (_filter.accepts(line.entry))
+            (day: line.entry.wibDay, line: line, gift: null),
+        if (_filter.showsGifts)
+          for (final gift in gifts) (day: gift.wonDay, line: null, gift: gift),
+      ];
+      mergeSort(rows, compare: (a, b) => b.day.compareTo(a.day));
+      slivers
+        ..add(
+          SliverToBoxAdapter(
+            child: _Summary(earned: earned, spent: spent, since: since),
+          ),
+        )
+        ..add(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Wrap(
                 spacing: 8,
+                runSpacing: 4,
                 children: <Widget>[
                   for (final filter in LedgerFilter.values)
                     ChoiceChip(
@@ -114,6 +147,9 @@ class _LedgerPageState extends State<LedgerPage> {
                       selected: filter == _filter,
                       showCheckmark: false,
                       materialTapTargetSize: MaterialTapTargetSize.padded,
+                      shape: const StadiumBorder(),
+                      selectedColor: tones.brandTint,
+                      backgroundColor: tones.surface,
                       labelStyle: TextStyle(
                         fontSize: 13,
                         fontWeight: filter == _filter
@@ -132,43 +168,48 @@ class _LedgerPageState extends State<LedgerPage> {
               ),
             ),
           ),
-        ),
-      ];
-      if (lines.isEmpty) {
+        );
+      if (rows.isEmpty) {
+        final nothing = all.isEmpty && gifts.isEmpty;
         slivers.add(
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: ColoredBox(
-              color: tones.surface,
-              child: HubEmptyState(
-                title: all.isEmpty ? 'Belum ada riwayat' : 'Belum ada entri',
-                message: all.isEmpty
-                    ? 'Check-in hari ini untuk Kelopak pertamamu.'
-                    : 'Belum ada Kelopak yang ${_filter == LedgerFilter.spent ? 'dipakai' : 'didapat'}.',
-                actionLabel: 'Check-in sekarang',
-                onAction: () =>
-                    KelopakNavigation.openPath(context, KelopakPaths.checkIn),
-              ),
+          SliverToBoxAdapter(
+            child: HubEmptyState(
+              title: nothing ? 'Belum ada riwayat' : 'Belum ada entri',
+              message: nothing
+                  ? 'Check-in hari ini untuk Kelopak pertamamu.'
+                  : switch (_filter) {
+                      LedgerFilter.spent => 'Belum ada Kelopak yang dipakai.',
+                      LedgerFilter.gifts =>
+                        'Belum ada hadiah produk. Coba Roda Sabtu atau '
+                            'check-in sampai hari ke-30.',
+                      _ => 'Belum ada Kelopak yang masuk.',
+                    },
+              actionLabel: 'Check-in sekarang',
+              onAction: () =>
+                  KelopakNavigation.openPath(context, KelopakPaths.checkIn),
             ),
           ),
         );
       } else {
         String? month;
         final children = <Widget>[];
-        for (final line in lines) {
-          final date = wibDateOf(line.entry.wibDay);
+        for (final row in rows) {
+          final date = wibDateOf(row.day);
           final label = '${_monthNames[date.month - 1]} ${date.year}';
           if (label != month) {
             month = label;
             children.add(_MonthHeader(label: label));
           } else {
-            children.add(Divider(height: 1, indent: 68, color: tones.line));
+            children.add(
+              Divider(height: 1, indent: 16, endIndent: 16, color: tones.line),
+            );
           }
+          final line = row.line;
+          final gift = row.gift;
           children.add(
-            ColoredBox(
-              color: tones.surface,
-              child: LedgerTile(line: line, showBalance: true),
-            ),
+            line != null
+                ? LedgerTile(line: line, showBalance: true)
+                : GiftLedgerTile(gift: gift!),
           );
         }
         slivers
@@ -176,126 +217,139 @@ class _LedgerPageState extends State<LedgerPage> {
           ..add(
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                child: Text(
-                  'Kelopak tidak kedaluwarsa selama program berjalan. Kelopak '
-                  'yang dipakai di pesanan batal dikembalikan otomatis.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 16 / 12,
-                    color: tones.textMuted,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: tones.muted,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 16,
+                          color: tones.textMuted,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Kelopak dipakai otomatis saat checkout dan hanya '
+                            'memotong harga barang, bukan ongkir. Pesanan '
+                            'dibatalkan, Kelopak kembali.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 16 / 12,
+                              color: tones.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           );
       }
-      body = CustomScrollView(slivers: slivers);
     }
-    return Scaffold(
-      backgroundColor: tones.canvas,
-      appBar: AppBar(title: const Text('Riwayat Kelopak')),
-      body: body,
+    return GameScaffold(
+      title: 'Riwayat Kelopak',
+      showBack: Navigator.of(context).canPop(),
+      heroTitleExtent: 28,
+      hero: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Semantics(
+            header: true,
+            child: const Text(
+              'Riwayat Kelopak',
+              style: TextStyle(
+                fontSize: 20,
+                height: 26 / 20,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                shadows: heroTextShadow,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Expanded(
+                child: loggedIn
+                    ? HubHeroBalance(controller: c, showHistory: false)
+                    : const Text(
+                        'Masuk untuk melihat saldo Kelopakmu.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 20 / 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          shadows: heroTextShadow,
+                        ),
+                      ),
+              ),
+              const Bobbing(
+                amplitude: 4,
+                child: Image(image: HubArt.bipyCheer, height: 104),
+              ),
+            ],
+          ),
+        ],
+      ),
+      slivers: slivers,
     );
   }
 }
 
 class _Summary extends StatelessWidget {
   const _Summary({
-    required this.balance,
     required this.earned,
     required this.spent,
+    required this.since,
   });
 
-  final int balance;
   final int earned;
   final int spent;
+  final int? since;
 
   @override
   Widget build(BuildContext context) {
     final tones = HubTones.of(context);
-    return ColoredBox(
-      color: tones.surface,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: tones.goldTint,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    const Image(image: HubArt.coin, width: 48, height: 48),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Semantics(
-                        label:
-                            'Saldo ${kelopakLabel(balance)}, senilai ${kelopakRupiah(balance)}',
-                        excludeSemantics: true,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Saldo Kelopak',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: tones.onGoldTint,
-                              ),
-                            ),
-                            Text(
-                              kelopakLabel(balance),
-                              style: TextStyle(
-                                fontSize: 22,
-                                height: 28 / 22,
-                                fontWeight: FontWeight.w800,
-                                color: tones.text,
-                                fontFeatures: tabularFigures,
-                              ),
-                            ),
-                            Text(
-                              'senilai ${kelopakRupiah(balance)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: tones.onGoldTint,
-                                fontFeatures: tabularFigures,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _Stat(
-                        label: 'Total didapat',
-                        value: '+${groupThousands(earned)}',
-                        color: tones.success,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _Stat(
-                        label: 'Total dipakai',
-                        value: groupThousands(spent),
-                        color: tones.text,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+    final from = since;
+    final suffix = from == null ? '' : ' sejak ${shortDateLabel(from)}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(
+              child: _Stat(
+                label: 'Masuk$suffix',
+                value: '+${groupThousands(earned)} Kelopak',
+                color: tones.success,
+                background: tones.successTint,
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _Stat(
+                label: 'Dipakai$suffix',
+                value: spent == 0
+                    ? '0 Kelopak'
+                    : '−${groupThousands(spent)} Kelopak',
+                color: tones.danger,
+                background: tones.scheme.errorContainer.withValues(
+                  alpha: tones.dark ? 0.35 : 0.45,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -303,30 +357,37 @@ class _Summary extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, required this.color});
+  const _Stat({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.background,
+  });
 
   final String label;
   final String value;
   final Color color;
+  final Color background;
 
   @override
   Widget build(BuildContext context) {
     final tones = HubTones.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: tones.surface,
-        borderRadius: BorderRadius.circular(10),
+        color: background,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(label, style: TextStyle(fontSize: 12, color: tones.textMuted)),
             Text(
-              '$value Kelopak',
+              value,
               style: TextStyle(
                 fontSize: 15,
+                height: 20 / 15,
                 fontWeight: FontWeight.w700,
                 color: color,
                 fontFeatures: tabularFigures,
@@ -347,19 +408,16 @@ class _MonthHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tones = HubTones.of(context);
-    return ColoredBox(
-      color: tones.canvas,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-        child: Semantics(
-          header: true,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: tones.textMuted,
-            ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Semantics(
+        header: true,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: tones.textMuted,
           ),
         ),
       ),

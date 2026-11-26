@@ -22,9 +22,10 @@ final class KelopakGameStatus {
     required this.detail,
     required this.actionLabel,
     required this.ready,
+    String? value,
     this.progress,
     this.streakFilled,
-  });
+  }) : value = value ?? headline;
 
   /// Ringkasan Check-in Harian.
   factory KelopakGameStatus.checkIn(KelopakController c) {
@@ -35,6 +36,7 @@ final class KelopakGameStatus {
       return const KelopakGameStatus(
         game: KelopakGame.checkIn,
         headline: '+1 Kelopak tiap hari',
+        value: '+1 per hari',
         detail: 'Hari ke-7 bonus +3, hari ke-30 produk gratis',
         actionLabel: 'Lihat',
         ready: false,
@@ -45,6 +47,7 @@ final class KelopakGameStatus {
       return KelopakGameStatus(
         game: KelopakGame.checkIn,
         headline: 'Sudah klaim hari ini',
+        value: 'Sudah klaim',
         detail: toProduct > 0
             ? 'Lanjut besok · produk gratis $toProduct hari lagi'
             : 'Lanjut besok, jaga rentetanmu',
@@ -59,6 +62,7 @@ final class KelopakGameStatus {
     return KelopakGameStatus(
       game: KelopakGame.checkIn,
       headline: bonus ? 'Hari bonus! Klaim +$amount' : 'Klaim +$amount Kelopak',
+      value: '+$amount Kelopak',
       detail:
           'Hari ke-${c.nextCheckInStreakDay} · $monthDay/30 ke produk gratis',
       actionLabel: 'Klaim',
@@ -81,6 +85,7 @@ final class KelopakGameStatus {
         return KelopakGameStatus(
           game: KelopakGame.wheel,
           headline: c.isLoggedIn ? 'Putar gratis hari ini' : 'Sabtu ini dibuka',
+          value: c.isLoggedIn ? '1x gratis' : 'Buka hari ini',
           detail: prizeLine,
           actionLabel: c.isLoggedIn ? 'Putar' : 'Lihat',
           ready: c.isLoggedIn,
@@ -89,6 +94,7 @@ final class KelopakGameStatus {
         return KelopakGameStatus(
           game: KelopakGame.wheel,
           headline: 'Sudah diputar minggu ini',
+          value: 'Sabtu lagi',
           detail: 'Dibuka lagi ${opening.dayLabel}',
           actionLabel: 'Lihat',
           ready: false,
@@ -97,6 +103,7 @@ final class KelopakGameStatus {
         return KelopakGameStatus(
           game: KelopakGame.wheel,
           headline: 'Buka Sabtu · ${opening.remainingLabel}',
+          value: 'Buka Sabtu',
           detail: prizeLine,
           actionLabel: 'Lihat',
           ready: false,
@@ -105,6 +112,7 @@ final class KelopakGameStatus {
         return const KelopakGameStatus(
           game: KelopakGame.wheel,
           headline: 'Promo roda sedang libur',
+          value: 'Sedang libur',
           detail: 'Pantau info promo berikutnya',
           actionLabel: 'Lihat',
           ready: false,
@@ -122,6 +130,7 @@ final class KelopakGameStatus {
       return KelopakGameStatus(
         game: KelopakGame.mission,
         headline: 'Semua tahap selesai',
+        value: 'Tuntas',
         detail: activeMissionVouchers.isEmpty
             ? 'Tunggu misi berikutnya, Babes'
             : 'Voucher siap dipakai',
@@ -136,18 +145,24 @@ final class KelopakGameStatus {
     final awaiting = c.isLoggedIn && c.view.ordersAwaitingMission.isNotEmpty;
     final reward = 'voucher ${rupiah(stage.voucherAmount)}';
     final String headline;
+    final String value;
     if (awaiting) {
       headline = 'Pesanan misi sedang berjalan';
+      value = 'Diproses';
     } else if (activeMissionVouchers.isNotEmpty && progress.current == 0) {
       headline = 'Voucher siap dipakai';
+      value = 'Voucher siap';
     } else if (progress.reached) {
       headline = 'Target tercapai, checkout sekarang';
+      value = 'Checkout';
     } else {
-      headline = '${rupiah(progress.remaining)} lagi';
+      headline = 'Tahap ${stage.number} · ${rupiah(progress.remaining)} lagi';
+      value = '${rupiahCompact(progress.remaining)} lagi';
     }
     return KelopakGameStatus(
       game: KelopakGame.mission,
       headline: headline,
+      value: value,
       detail: awaiting
           ? 'Terima pesanan untuk dapat $reward'
           : '${stage.title} · belanja ${rupiah(stage.minOrderSubtotal)}, dapat $reward',
@@ -181,6 +196,10 @@ final class KelopakGameStatus {
 
   /// Kalimat pendukung satu baris.
   final String detail;
+
+  /// Nilai ringkas satu baris untuk ubin sempit ("+1 Kelopak", "1x gratis",
+  /// "Rp40rb lagi"). Bawaan sama dengan [headline].
+  final String value;
 
   /// Label tombol kecil.
   final String actionLabel;

@@ -273,7 +273,7 @@ void main() {
       expect(engine.balance, 0);
       expect(engine.ledger.last.amount, -1);
       expect(engine.ledger.last.kind, LedgerKind.checkoutSpend);
-      expect(engine.ledger.last.note, 'Dipakai di pesanan BP-20261124-0001');
+      expect(engine.ledger.last.note, 'Dipakai di pesanan #BP-20261124-0001');
       expect(engine.ledger.last.orderId, 'BP-20261124-0001');
     });
 

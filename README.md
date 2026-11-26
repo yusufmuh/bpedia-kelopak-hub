@@ -11,7 +11,8 @@ Isi paket: mesin aturan, buku besar, kutipan checkout (Kelopak memotong harga, K
 | | |
 |---|---|
 | Versi | 3.0.0 |
-| Dependensi | Flutter SDK, `daily_checkin`, `roda_sabtu`, `misi_belanja` (path, repo bersebelahan) |
+| Dependensi | Flutter SDK, `daily_checkin`, `roda_sabtu`, `misi_belanja` (ikut terpasang otomatis) |
+| Lisensi | Belum ditetapkan pemilik (Muhammad Yusuf, Bpedia); belum boleh dipakai di luar proyek Bpedia |
 | Flutter | 3.41.7 / Dart 3.11.5 |
 
 ## Tangkapan layar
@@ -25,6 +26,27 @@ Isi paket: mesin aturan, buku besar, kutipan checkout (Kelopak memotong harga, K
 | ![](docs/shots/hadiahku_terang.jpg) | ![](docs/shots/voucher_terang.jpg) | ![](docs/shots/riwayat_gelap.jpg) | ![](docs/shots/perayaan_misi_terang.jpg) |
 
 Semua tangkapan dibuat ulang dengan `flutter test test/shots` (PNG di `build/shots/`, terang dan gelap).
+
+## Pasang
+
+Tambahkan ke `pubspec.yaml` aplikasi:
+
+```yaml
+dependencies:
+  kelopak_hub:
+    git:
+      url: https://github.com/yusufmuh/bpedia-kelopak-hub.git
+      ref: v3.0.0
+```
+
+Ketiga modul game (`daily_checkin`, `roda_sabtu`, `misi_belanja`) ikut terpasang sebagai dependensi hub; aplikasi tidak perlu mendaftarkannya sendiri. Selama pengembangan lokal (lima repo bersebelahan di satu folder) hub memakai dependensi `path:` ke modul.
+
+Urutan rilis v3.0.0 (dikerjakan pemilik rilis):
+
+1. Tag `v3.0.0` di `bpedia-daily-checkin`, `bpedia-roda-sabtu`, `bpedia-misi-belanja`.
+2. Ganti tiga dependensi `path:` di `pubspec.yaml` hub menjadi `git:` (url repo modul, `ref: v3.0.0`); simpan varian `path:` untuk kerja lokal di `pubspec_overrides.yaml` yang tidak di-commit. Jalankan `flutter pub get` dan gerbang mutu.
+3. Tag `v3.0.0` di hub.
+4. Ganti dependensi hub di `bpedia-app` ke `git:` `ref: v3.0.0`, `flutter pub get`, uji, lalu rilis app.
 
 ## Pakai
 
@@ -45,7 +67,22 @@ runApp(KelopakScope(
 ));
 ```
 
-API lengkap, bentuk data, dan endpoint backend: `docs/SPEC-CONTRACT.md`; kontrak HTTP rinci untuk tim backend dan server acuan PHP: `docs/BACKEND.md`, `server/`. Langkah integrasi: `HANDOFF-PENGEMBANG.md`. Produk: `PRD.md`.
+### Tab Hadiah dan `KelopakNavigation`
+
+Halaman hub berpindah jalur lewat `KelopakNavigation.openPath(context, '/hadiah/...')`. Tanpa `KelopakNavigation` di atasnya, hub memakai `Navigator.pushNamed` dengan `kelopakRoutes`. Bila `/hadiah` adalah tab di bilah bawah app, bungkus pohon app dengan `KelopakNavigation` supaya `/hadiah` memilih tab (bukan menumpuk halaman baru) dan jalur lain (`/hadiah/roda`, `/hadiah/voucher`, ...) ditumpuk oleh router app:
+
+```dart
+KelopakNavigation(
+  open: (context, location) => location == KelopakPaths.rewards
+      ? appShell.selectTab(AppTab.hadiah)
+      : appRouter.push(location),
+  child: child,
+)
+```
+
+Kepala Zona Hadiah menerima aksi host, mis. Notifikasi dan Keranjang berlencana: `RewardsHubPage(actions: <Widget>[...])` (ikon putih 24 dp, tampil sebelum ikon bantuan).
+
+API lengkap, bentuk data, dan endpoint backend: `docs/SPEC-CONTRACT.md`; kontrak HTTP rinci untuk tim backend dan server acuan PHP: `docs/BACKEND.md`, `server/`. Langkah integrasi: `HANDOFF-PENGEMBANG.md`. Produk: `PRD.md`. Riwayat versi: `CHANGELOG.md`.
 
 ## API publik utama
 
@@ -57,16 +94,17 @@ API lengkap, bentuk data, dan endpoint backend: `docs/SPEC-CONTRACT.md`; kontrak
 | Halaman | `RewardsHubPage`, `MyGiftsPage`, `VouchersPage`, `LedgerPage`, `showKelopakHowTo`, `kelopakRoutes`, `kelopakRouteFor`, `KelopakNavigation`, `KelopakPaths` |
 | Game | `KelopakCheckInScreen`, `KelopakWheelScreen`, `KelopakMissionScreen`, `KelopakCheckInController`, `KelopakWheelController`, `KelopakMissionController`, `KelopakGameStatus` |
 | Tanam | `KelopakWalletStrip`, `KelopakGameStrip`, `MissionCompleteCelebration`, `showMissionCompleteCelebration` |
-| Komponen | `VoucherTicket`, `LedgerTile`, `GiftProductImage`, `GiftStatusChip`, `HubArt`, `kelopakPreviewTheme` |
+| Komponen | `VoucherTicket`, `VoucherTeaserTicket`, `LedgerTile`, `GiftLedgerTile`, `GiftProductImage`, `GiftStatusChip`, `HubArt`, `kelopakPreviewTheme` |
 | Kit | `package:kelopak_hub/kit.dart`: kit pesta (`CandyButton`, `GameScaffold`, `ResultSheet`, konfeti, koin terbang, sprite) + `BipySprite`, `BipySprites` |
 
 ## Contoh
 
 `example/` menjalankan Beranda tiruan (strip dompet + "Main bareng Bipy"), zona Hadiah, tiga game, toko dan keranjang sederhana, dan panel demo (masuk/tamu, tema, kurangi gerak, geser hari, ke Sabtu, isi saldo, kuota roda, pesanan, atur ulang).
 
+Runner `example/android` dan `example/web` ikut repo.
+
 ```bash
 cd example
-flutter create --platforms=web,android .   # sekali, membuat runner
 flutter run -d chrome
 ```
 
@@ -91,7 +129,7 @@ lib/
   src/embed                 widget tanam untuk host
   src/kit                   salinan kit pesta (jangan diubah di sini)
 assets/art, bipy, fx        seni 3D, Bipy, stiker
-example/                    app contoh
+example/                    app contoh (runner android + web)
 test/                       domain, storage, backend, controller, ui, shots
 docs/                       kontrak, riset, tangkapan layar
 server/                     server acuan PHP v3 (kontrak docs/BACKEND.md, swa-uji php server/selftest.php)
