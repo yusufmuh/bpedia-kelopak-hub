@@ -48,3 +48,9 @@ app.*.map.json
 /android/
 /ios/
 /web/
+
+# Override path lokal (lihat pubspec_overrides.example.yaml)
+pubspec_overrides.yaml
+# Paket pustaka: lock tidak di-commit (aplikasi pemakai yang mengunci versi)
+pubspec.lock
+example/pubspec.lock

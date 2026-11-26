@@ -1,0 +1,9 @@
+# Pengembangan lokal: salin berkas ini menjadi pubspec_overrides.yaml bila kelima repo Bpedia
+# berada berdampingan dalam satu folder. pubspec_overrides.yaml tidak di-commit.
+dependency_overrides:
+  daily_checkin:
+    path: ../bpedia-daily-checkin
+  roda_sabtu:
+    path: ../bpedia-roda-sabtu
+  misi_belanja:
+    path: ../bpedia-misi-belanja

@@ -11,11 +11,17 @@ dependencies:
   flutter:
     sdk: flutter
   daily_checkin:
-    path: ../bpedia-daily-checkin
+    git:
+      url: https://github.com/yusufmuh/bpedia-daily-checkin.git
+      ref: v3.0.0
   roda_sabtu:
-    path: ../bpedia-roda-sabtu
+    git:
+      url: https://github.com/yusufmuh/bpedia-roda-sabtu.git
+      ref: v3.0.0
   misi_belanja:
-    path: ../bpedia-misi-belanja
+    git:
+      url: https://github.com/yusufmuh/bpedia-misi-belanja.git
+      ref: v3.0.0
 
 dev_dependencies:
   flutter_test:
